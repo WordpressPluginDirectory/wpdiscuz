@@ -16,7 +16,29 @@ if (!defined("ABSPATH")) {
     <div class="wpd-opt-doc" style="padding-top: 10px;">
         <a href="https://wpdiscuz.com/docs/wpdiscuz-7/plugin-settings/live-commenting-and-notifications/"
            title="<?php esc_attr_e("Read the documentation", "wpdiscuz") ?>" target="_blank"><i
-                    class="far fa-question-circle"></i></a>
+                class="far fa-question-circle"></i></a>
+    </div>
+</div>
+<!-- Option end -->
+
+<!-- Option start -->
+<div class="wpd-opt-row" data-wpd-opt="userInteractionCheck">
+    <div class="wpd-opt-name">
+        <label><?php echo esc_html($setting["options"]["userInteractionCheck"]["label"]) ?></label>
+        <p class="wpd-desc"><?php echo wp_kses($setting["options"]["userInteractionCheck"]["description"], wp_kses_allowed_html('post')); ?></p>
+    </div>
+    <div class="wpd-opt-input">
+        <div class="wpd-switch-field">
+            <input type="radio" value="1" <?php checked(1 == $this->live["userInteractionCheck"]); ?>
+                   name="<?php echo esc_attr(WpdiscuzCore::TAB_LIVE); ?>[userInteractionCheck]" id="enableUserInteractionCheck"/>
+            <label for="enableUserInteractionCheck" style="min-width:60px;"><?php esc_html_e("Enable", "wpdiscuz"); ?></label>
+            <input type="radio" value="0" <?php checked(0 == $this->live["userInteractionCheck"]); ?>
+                   name="<?php echo esc_attr(WpdiscuzCore::TAB_LIVE); ?>[userInteractionCheck]" id="disableUserInteractionCheck"/>
+            <label for="disableUserInteractionCheck" style="min-width:60px;"><?php esc_html_e("Disable", "wpdiscuz"); ?></label>
+        </div>
+    </div>
+    <div class="wpd-opt-doc">
+        <?php $this->printDocLink($setting["options"]["userInteractionCheck"]["docurl"]) ?>
     </div>
 </div>
 <!-- Option end -->
@@ -102,8 +124,8 @@ if (!defined("ABSPATH")) {
     <div class="wpd-opt-name">
         <label><?php echo esc_html($setting["options"]["bubbleShowNewCommentMessage"]["label"]) ?></label>
         <div style="width: 76%; margin-top: 5px;"><img
-                    src="<?php echo esc_url_raw(plugins_url(WPDISCUZ_DIR_NAME . "/assets/img/dashboard/bubble-new-comment-info.png")); ?>"
-                    style="width: 100%;"/></div>
+                src="<?php echo esc_url_raw(plugins_url(WPDISCUZ_DIR_NAME . "/assets/img/dashboard/bubble-new-comment-info.png")); ?>"
+                style="width: 100%;"/></div>
         <p class="wpd-desc"><?php echo esc_html($setting["options"]["bubbleShowNewCommentMessage"]["description"]) ?></p>
     </div>
     <div class="wpd-opt-input">
@@ -131,8 +153,8 @@ if (!defined("ABSPATH")) {
     <div class="wpd-opt-name">
         <label for="bubbleHintTimeout"><?php echo esc_html($setting["options"]["bubbleHintTimeout"]["label"]) ?></label>
         <div style="width: 77%; margin-top: 5px;"><img
-                    src="<?php echo esc_url_raw(plugins_url(WPDISCUZ_DIR_NAME . "/assets/img/dashboard/bubble-invite-to-comment.png")); ?>"
-                    style="width: 100%"/></div>
+                src="<?php echo esc_url_raw(plugins_url(WPDISCUZ_DIR_NAME . "/assets/img/dashboard/bubble-invite-to-comment.png")); ?>"
+                style="width: 100%"/></div>
         <p class="wpd-desc"><?php echo esc_html($setting["options"]["bubbleHintTimeout"]["description"]) ?></p>
     </div>
     <div class="wpd-opt-input">

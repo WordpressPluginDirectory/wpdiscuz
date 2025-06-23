@@ -2,8 +2,8 @@
 Contributors: gVectors Team
 Tags: comment, comments, ajax comments, comment form, comment fields
 Requires at least: 5.0
-Tested up to: 6.6
-Stable tag: 7.6.26
+Tested up to: 6.8
+Stable tag: 7.6.31
 Requires PHP: 5.6
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -189,6 +189,37 @@ Nothing will be lost!  **Comments - wpDiscuz** will show all old comments.
 
 Please don't forget delete all caches and purge CDN after the update.
 
+= Comments - wpDiscuz v7.6.31 - 22.06.2025 =
+
+* Fixed: Potential security issue
+* Fixed: Issue with BuddyPress uploaded avatars
+
+= Comments - wpDiscuz v7.6.30 - 10.05.2025 =
+
+* Fixed: An issue with text domain loading
+
+= Comments - wpDiscuz v7.6.29 - 23.03.2025 =
+
+* Added: New arguments for "wpdiscuz_comment_posted" JS event
+* Fixed: Error Class "WpdiscuzHelper" Not Found
+* Fixed: Issue with form options on switching blogs
+
+= Comments - wpDiscuz v7.6.28 - 20.02.2025 =
+
+* Added: A new option to check users last interaction with the website and optimize the live update requests
+* Added: A new JS event before comment post "wpdiscuz_new_comment"
+* Added: A new action before comment insertion "wpdiscuz_before_wp_new_comment"
+* Fixed: Issue with  subscriptions
+* Fixed: Issue with unsubscription links
+* Fixed: Issue with wpdiscuz-feedback shordcode's attributes
+* Changed: Uploading media files on comment post only
+* Changed: SVG icons for Social Login
+
+= Comments - wpDiscuz v7.6.27 - 14.10.2024 =
+
+* Added: A new option for Social Login
+* Fixed: Undefined array key "is_rate_editable"
+
 = Comments - wpDiscuz v7.6.26 - 11.10.2024 =
 
 * Fixed: wpDiscuz menu icons styling issues
@@ -221,19 +252,3 @@ Please don't forget delete all caches and purge CDN after the update.
 = Comments - wpDiscuz v7.6.21 - 06.07.2024 =
 
 * Fixed: Regenerate comment attachments metadata via WP Cron
-
-= Comments - wpDiscuz v7.6.20 - 22.06.2024 =
-
-* Added: wpDiscuz custom ajax now supports media uploading
-* Added: New hooks (wpdiscuz_user_can_view_fields, wpdiscuz_user_can_view_field) to control custom fields visibility, check out https://wpdiscuz.com/docs/codex/filters/ "docs" for more info
-* Added: A new option that will allow to control uploaded images thumbnails generation via WP cron job or immediately, default: enabled
-
-= Comments - wpDiscuz v7.6.19 - 08.05.2024 =
-
-* Fixed: Issue with date difference logic
-* Fixed: Vulnerability in the shortcode [wpdiscuz-feedback]
-* Fixed: Deprecated function call "bp_core_get_user_domain"
-
-= Comments - wpDiscuz v7.6.18 - 24.04.2024 =
-
-* Fixed: Timout error on dashboard statistics page when comments count are too many
