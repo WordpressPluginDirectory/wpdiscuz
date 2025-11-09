@@ -143,10 +143,18 @@ class WpdiscuzHelperAjax implements WpDiscuzConstants {
     }
 
     public function deactivate() {
+        if (!current_user_can("manage_options")) {
+            wp_send_json_error();
+        }
+
         $response = ["code" => 0];
         $json     = filter_input(INPUT_POST, "deactivateData");
         if ($json) {
             parse_str($json, $data);
+            if (!wp_verify_nonce($data['_wpnonce'], self::DEACTIVATION_NONCE_ACTION)) {
+                wp_send_json_error();
+            }
+
             if (isset($data["never_show"]) && ($v = intval($data["never_show"]))) {
                 update_option(self::OPTION_SLUG_DEACTIVATION, $v);
                 $response["code"] = "dismiss_and_deactivate";
@@ -629,10 +637,15 @@ class WpdiscuzHelperAjax implements WpDiscuzConstants {
             wp_send_json_error("wc_login_to_vote");
         }
 
-        $commentId = WpdiscuzHelper::sanitize(INPUT_POST, "commentId", FILTER_SANITIZE_NUMBER_INT, 0);
-        $voteType  = WpdiscuzHelper::sanitize(INPUT_POST, "voteType", FILTER_SANITIZE_NUMBER_INT, 0);
+        $commentId        = WpdiscuzHelper::sanitize(INPUT_POST, "commentId", FILTER_SANITIZE_NUMBER_INT, 0);
+        $voteType         = (int)WpdiscuzHelper::sanitize(INPUT_POST, "voteType", FILTER_SANITIZE_NUMBER_INT, 0);
+        $allowedVoteTypes = [1];
 
-        if ($commentId && $voteType && ($voteType != -1 || ($voteType == -1 && $this->options->thread_layouts["enableDislikeButton"]))) {
+        if ($this->options->thread_layouts["enableDislikeButton"]) {
+            $allowedVoteTypes[] = -1;
+        }
+
+        if ($commentId && in_array($voteType, $allowedVoteTypes, true)) {
             if ($isUserLoggedIn) {
                 $userIdOrIp = get_current_user_id();
             } else {

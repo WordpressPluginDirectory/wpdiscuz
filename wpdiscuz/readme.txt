@@ -3,7 +3,7 @@ Contributors: gVectors Team
 Tags: comment, comments, ajax comments, comment form, comment fields
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 7.6.32
+Stable tag: 7.6.37
 Requires PHP: 5.6
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -51,7 +51,6 @@ wpDiscuz version 7 is a revolutionary perspective on the commenting world! This 
 * Multiple line-breaks (limited by Wordpress comment filter)
 * Comment author notification options with special checkboxes on comment form
 * Subscription activation via additional "Confirm Subscription" email
-* Integration with Postmatic for subscriptions and commenting by email
 * Ability to add comment system on attachment pages if it's allowed by Wordpress
 * Fast and easy comment form with ajax validation and data submitting
 * Fully integrated and compatible with Wordpress
@@ -59,7 +58,6 @@ wpDiscuz version 7 is a revolutionary perspective on the commenting world! This 
 * Secure and Anti-Spam features will not allow spammers to comment
 * Comment voting with positive and negative result
 * Smart voting system with tracking by logged-in user and cookies
-* Post sharing options: Facebook, Twitter and Google+
 * Quick Tags on comment form textarea
 * Custom Comment Forms with custom fields
 * Rating shortcode for posts via comment custom field [wpdrating] with a lot of attributes
@@ -189,6 +187,32 @@ Nothing will be lost!  **Comments - wpDiscuz** will show all old comments.
 
 Please don't forget delete all caches and purge CDN after the update.
 
+= Comments - wpDiscuz v7.6.37 - 08.11.2025 =
+
+* Fixed: Email notification issue for comments made by anonymous users.
+
+= Comments - wpDiscuz v7.6.36 - 05.11.2025 =
+
+* Fixed: Vulnerability in voting actions
+* Fixed: Duplicated Gravatars for anonymous users.
+
+= Comments - wpDiscuz v7.6.35 - 25.10.2025 =
+
+* Updated: Vk Login to Vk ID login
+* Removed: mail.ru and ok.ru social login
+* Removed: Zerospam and postmatic support
+* Removed: Anonymous comment author name and email auto generation
+
+= Comments - wpDiscuz v7.6.34 - 19.09.2025 =
+
+* Fixed: An issue during the plugin deactivation
+* Fixed: An issue with 'Enable subscription bar' option
+* Fixed: An issue with caching
+
+= Comments - wpDiscuz v7.6.33 - 29.06.2025 =
+
+* Fixed: Avatars compatibility issue with wpForo
+
 = Comments - wpDiscuz v7.6.32 - 24.06.2025 =
 
 * Fixed: An error when getting users' avatars
@@ -201,30 +225,3 @@ Please don't forget delete all caches and purge CDN after the update.
 = Comments - wpDiscuz v7.6.30 - 10.05.2025 =
 
 * Fixed: An issue with text domain loading
-
-= Comments - wpDiscuz v7.6.29 - 23.03.2025 =
-
-* Added: New arguments for "wpdiscuz_comment_posted" JS event
-* Fixed: Error Class "WpdiscuzHelper" Not Found
-* Fixed: Issue with form options on switching blogs
-
-= Comments - wpDiscuz v7.6.28 - 20.02.2025 =
-
-* Added: A new option to check users last interaction with the website and optimize the live update requests
-* Added: A new JS event before comment post "wpdiscuz_new_comment"
-* Added: A new action before comment insertion "wpdiscuz_before_wp_new_comment"
-* Fixed: Issue with  subscriptions
-* Fixed: Issue with unsubscription links
-* Fixed: Issue with wpdiscuz-feedback shordcode's attributes
-* Changed: Uploading media files on comment post only
-* Changed: SVG icons for Social Login
-
-= Comments - wpDiscuz v7.6.27 - 14.10.2024 =
-
-* Added: A new option for Social Login
-* Fixed: Undefined array key "is_rate_editable"
-
-= Comments - wpDiscuz v7.6.26 - 11.10.2024 =
-
-* Fixed: wpDiscuz menu icons styling issues
-* Fixed: Undefined array key "is_rate_editable"
