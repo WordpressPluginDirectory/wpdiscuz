@@ -1402,9 +1402,16 @@ class WpdiscuzHelper implements WpDiscuzConstants {
         }
     }
 
+    /**
+     * Checks if there are any unapproved comments within the given comments tree.
+     *
+     * @param $comments WP_Comment[]
+     * @param array $comments An array of comments to be checked, potentially with nested children.
+     * @return bool Returns true if an unapproved comment exists in the tree, otherwise false.
+     */
     public function isUnapprovedInTree($comments) {
         foreach ($comments as $comment) {
-            if ($comment->comment_approved === "0") {
+            if (empty($comment->comment_approved) || $comment->comment_approved === "0") {
                 return true;
             }
             if ($children = $comment->get_children()) {
