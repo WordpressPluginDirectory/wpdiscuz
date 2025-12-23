@@ -3,7 +3,7 @@ Contributors: gVectors Team
 Tags: comment, comments, ajax comments, comment form, comment fields
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 7.6.39
+Stable tag: 7.6.41
 Requires PHP: 5.6
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -186,6 +186,14 @@ Nothing will be lost!  **Comments - wpDiscuz** will show all old comments.
 **IMPORTANT!**
 
 Please don't forget delete all caches and purge CDN after the update.
+
+= Comments - wpDiscuz v7.6.41 - 22.12.2025 =
+
+* Updated: Added gutenberg toolbar button for inline feedback shortcode generation
+
+= Comments - wpDiscuz v7.6.40 - 09.12.2025 =
+
+* Fixed: Disqus login vulnerability
 
 = Comments - wpDiscuz v7.6.39 - 06.12.2025 =
 

@@ -153,7 +153,7 @@ class Utils {
             "last_name"      => "",
             "display_name"   => $disqusUser["name"],
             "user_url"       => $disqusUser["profileUrl"],
-            "user_email"     => $disqusUser["email"],
+            "user_email"     => $disqusUser["user_id"] . "@disqus.com",
             "provider"       => "disqus",
             "social_user_id" => $disqusUser["user_id"],
             "avatar"         => isset($disqusUser["avatar"]["permalink"]) ? $disqusUser["avatar"]["permalink"] : "",

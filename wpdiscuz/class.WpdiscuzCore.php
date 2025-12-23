@@ -2,7 +2,7 @@
 /*
  * Plugin Name: wpDiscuz
  * Description: #1 WordPress Comment Plugin. Innovative, modern and feature-rich comment system to supercharge your website comment section.
- * Version: 7.6.39
+ * Version: 7.6.41
  * Author: gVectors Team
  * Author URI: https://gvectors.com/
  * Plugin URI: https://wpdiscuz.com/
@@ -189,6 +189,8 @@ class WpdiscuzCore implements WpDiscuzConstants {
         add_action("elementor/editor/after_enqueue_styles", [&$this, "inlineCommentForElementorCSS"]);
         add_action("elementor/editor/footer", [&$this, "feedbackDialog"]);
         add_action("elementor/widgets/register", [&$this, "registerWpdiscuzWidgetInElementor"]);
+
+        add_action("enqueue_block_editor_assets", [$this, "blocksFiles"]);
     }
 
     public static function getInstance() {
@@ -889,7 +891,7 @@ class WpdiscuzCore implements WpDiscuzConstants {
         }
 
         if (is_array($commentList) && ($count = count($commentList)) && array_key_exists($count - 1, $commentList) && ($commentList[$count - 1] instanceof WP_Comment)) {
-            $commentListArgs["lastCommentIdInList"] =  $commentList[$count - 1]->comment_ID;
+            $commentListArgs["lastCommentIdInList"] = $commentList[$count - 1]->comment_ID;
         }
 
         $commentData["comments_count"] = $commentList && is_array($commentList) ? count($commentList) : -1;
@@ -2740,6 +2742,14 @@ class WpdiscuzCore implements WpDiscuzConstants {
         $wrapperAttributes = get_block_wrapper_attributes();
 
         return sprintf('<div %1$s><div>%2$s</div></div>', $wrapperAttributes, $output);
+    }
+
+    public function blocksFiles() {
+        wp_enqueue_script(
+            'wpdiscuz-inline-feedback-button-js',
+            WPDISCUZ_DIR_URL . '/gutenberg/build/index.js',
+            ['wp-plugins', 'wp-edit-post', 'wp-data', 'wp-block-editor', 'wp-rich-text'],
+        );
     }
 
 }

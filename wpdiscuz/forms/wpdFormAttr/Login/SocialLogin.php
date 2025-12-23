@@ -620,10 +620,10 @@ class SocialLogin {
             $this->redirect($postID, esc_html__("Disqus authentication failed (user_id does not exist).", "wpdiscuz"));
         }
         $userID                = $disqusAccesTokenData["user_id"];
-        $accesToken            = $disqusAccesTokenData["access_token"];
+        $accessToken           = $disqusAccesTokenData["access_token"];
         $disqusGetUserDataURL  = "https://disqus.com/api/3.0/users/details.json";
         $disqusGetUserDataAttr = [
-            "access_token" => $accesToken,
+            "access_token" => $accessToken,
             "api_key"      => $this->generalOptions->social["disqusPublicKey"],
         ];
 
