@@ -149,9 +149,9 @@ module.exports = window["ReactJSXRuntime"];
 var __webpack_exports__ = {};
 // This entry needs to be wrapped in an IIFE because it needs to be isolated against other modules in the chunk.
 (() => {
-/*!**********************!*\
-  !*** ./src/index.js ***!
-  \**********************/
+/*!***********************!*\
+  !*** ./src/index.jsx ***!
+  \***********************/
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _wordpress_plugins__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @wordpress/plugins */ "@wordpress/plugins");
 /* harmony import */ var _wordpress_plugins__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_wordpress_plugins__WEBPACK_IMPORTED_MODULE_0__);
@@ -167,6 +167,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _wordpress_element__WEBPACK_IMPORTED_MODULE_5___default = /*#__PURE__*/__webpack_require__.n(_wordpress_element__WEBPACK_IMPORTED_MODULE_5__);
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! react/jsx-runtime */ "react/jsx-runtime");
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6___default = /*#__PURE__*/__webpack_require__.n(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__);
+/**
+ * WordPress dependencies
+ */
 
 
 
@@ -176,12 +179,23 @@ __webpack_require__.r(__webpack_exports__);
 
 
 const SHORTCODE_NAME = 'wpdiscuz-feedback';
+
+/**
+ * Generate unique ID
+ */
 function generateId() {
   return Math.random().toString(36).substring(2, 12);
 }
 
 /**
- * Modal renderer helper
+ * Escape shortcode attributes
+ */
+function escapeAttribute(value) {
+  return String(value).replace(/"/g, '&quot;').replace(/\]/g, '&#93;').replace(/\[/g, '&#91;');
+}
+
+/**
+ * Open modal helper
  */
 function openFeedbackModal({
   selectedText,
@@ -190,28 +204,27 @@ function openFeedbackModal({
 }) {
   const container = document.createElement('div');
   document.body.appendChild(container);
-  const root = (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_5__.createRoot)(container);
   const ModalApp = () => {
     const [question, setQuestion] = (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_5__.useState)(selectedText);
     const [opened, setOpened] = (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_5__.useState)(false);
     const close = () => {
-      root.unmount();
+      (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_5__.unmountComponentAtNode)(container);
       document.body.removeChild(container);
     };
     const insertShortcode = () => {
-      const shortcode = `[${SHORTCODE_NAME} id="${generateId()}" ` + `question="${question}" opened="${opened ? 1 : 0}"]` + `${selectedText}` + `[/${SHORTCODE_NAME}]`;
+      const shortcode = `[${SHORTCODE_NAME} ` + `id="${generateId()}" ` + `question="${escapeAttribute(question)}" ` + `opened="${opened ? 1 : 0}"]` + `${selectedText}` + `[/${SHORTCODE_NAME}]`;
       onChange((0,_wordpress_rich_text__WEBPACK_IMPORTED_MODULE_2__.insert)(value, shortcode, value.start, value.end));
       close();
     };
     return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsxs)(_wordpress_components__WEBPACK_IMPORTED_MODULE_3__.Modal, {
-      title: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Inline Feedback', 'shortcode-inserter'),
+      title: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Inline Feedback', 'wpdiscuz'),
       onRequestClose: close,
       children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsx)(_wordpress_components__WEBPACK_IMPORTED_MODULE_3__.TextControl, {
-        label: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Question', 'shortcode-inserter'),
+        label: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Question', 'wpdiscuz'),
         value: question,
         onChange: setQuestion
       }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsx)(_wordpress_components__WEBPACK_IMPORTED_MODULE_3__.ToggleControl, {
-        label: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Opened by default', 'shortcode-inserter'),
+        label: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Opened by default', 'wpdiscuz'),
         checked: opened,
         onChange: setOpened
       }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsxs)("div", {
@@ -221,37 +234,42 @@ function openFeedbackModal({
         children: [/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsx)(_wordpress_components__WEBPACK_IMPORTED_MODULE_3__.Button, {
           variant: "primary",
           onClick: insertShortcode,
-          children: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Insert', 'shortcode-inserter')
+          children: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Insert', 'wpdiscuz')
         }), /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsx)(_wordpress_components__WEBPACK_IMPORTED_MODULE_3__.Button, {
           variant: "secondary",
           onClick: close,
           style: {
             marginLeft: 8
           },
-          children: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Cancel', 'shortcode-inserter')
+          children: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Cancel', 'wpdiscuz')
         })]
       })]
     });
   };
-  root.render(/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsx)(ModalApp, {}));
+  (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_5__.render)(/*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsx)(ModalApp, {}), container);
 }
 
 /**
  * Register RichText format
  */
 (0,_wordpress_rich_text__WEBPACK_IMPORTED_MODULE_2__.registerFormatType)('wpdiscuz/feedback', {
-  title: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Inline Feedback', 'shortcode-inserter'),
+  title: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Inline Feedback', 'wpdiscuz'),
   tagName: 'span',
   className: 'wpdiscuz-feedback-format',
   edit({
     value,
     onChange
   }) {
-    const selectedText = value.text.slice(value.start, value.end);
-    if (!selectedText) return null;
+    if (!value || value.start === value.end) {
+      return null;
+    }
+    const selectedText = value.text?.slice(value.start, value.end) || '';
+    if (!selectedText) {
+      return null;
+    }
     return /*#__PURE__*/(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_6__.jsx)(_wordpress_block_editor__WEBPACK_IMPORTED_MODULE_1__.RichTextToolbarButton, {
       icon: "shortcode",
-      title: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Inline Feedback', 'shortcode-inserter'),
+      title: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_4__.__)('Inline Feedback', 'wpdiscuz'),
       onClick: () => openFeedbackModal({
         selectedText,
         value,
@@ -260,7 +278,11 @@ function openFeedbackModal({
     });
   }
 });
-(0,_wordpress_plugins__WEBPACK_IMPORTED_MODULE_0__.registerPlugin)('shortcode-inserter', {
+
+/**
+ * Plugin registration
+ */
+(0,_wordpress_plugins__WEBPACK_IMPORTED_MODULE_0__.registerPlugin)('wpdiscuz-shortcode-inserter', {
   render: () => null
 });
 })();
