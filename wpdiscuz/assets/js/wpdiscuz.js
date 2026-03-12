@@ -122,9 +122,10 @@ jQuery(document).ready(function ($) {
     var addingComment = false;
     var wpdiscuzLoadCount = 1;
     var userInteractedAt = 0;
+    const isUpdateNonceWithAjax = wpdiscuzAjaxObj.isUpdateNonceWithAjax;
 
-    if (!isUserLoggedIn && !Cookies.get('wpdiscuz_nonce_' + wpdiscuzCookiehash)) {
-        var data = new FormData();
+    if (isUpdateNonceWithAjax) {
+        const data = new FormData();
         data.append('action', 'wpdGetNonce');
         getAjaxObj(isNativeAjaxEnabled, false, data);
     }
