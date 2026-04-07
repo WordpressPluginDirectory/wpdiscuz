@@ -115,7 +115,7 @@ jQuery(document).ready(function ($) {
     var bubbleLocation = wpdiscuzAjaxObj.bubbleLocation;
     var inlineFeedbackAttractionType = wpdiscuzAjaxObj.inlineFeedbackAttractionType;
     var scrollSize = parseInt(wpdiscuzAjaxObj.scrollSize);
-    var scrollSize = scrollSize ? scrollSize : 32;
+    scrollSize = scrollSize ? scrollSize : 32;
     var wpdiscuzAgreementFields = [];
     var reCaptchaWidgets = [];
     var bubbleNewCommentIds = [];
@@ -125,9 +125,29 @@ jQuery(document).ready(function ($) {
     const isUpdateNonceWithAjax = wpdiscuzAjaxObj.isUpdateNonceWithAjax;
 
     if (isUpdateNonceWithAjax) {
-        const data = new FormData();
-        data.append('action', 'wpdGetNonce');
-        getAjaxObj(isNativeAjaxEnabled, false, data);
+        let wpdNonceRefreshDone = false;
+        let wpdNonceEventsList = ['mousedown', 'mousemove', 'touchstart', 'scroll', 'keydown'];
+
+        function wpdNonceOnInteraction() {
+            if (wpdNonceRefreshDone) {
+                return;
+            }
+            wpdNonceRefreshDone = true;
+
+            wpdNonceEventsList.forEach(function (e) {
+                document.removeEventListener(e, wpdNonceOnInteraction);
+            });
+
+            if (!Cookies.get(wpdiscuzAjaxObj.nonceCookieName)) {
+                var nonceData = new FormData();
+                nonceData.append('action', 'wpdGetNonce');
+                getAjaxObj(isNativeAjaxEnabled, false, nonceData);
+            }
+        }
+
+        wpdNonceEventsList.forEach(function (e) {
+            document.addEventListener(e, wpdNonceOnInteraction);
+        });
     }
 
     var htmlScrollBehavior = $('html').css('scroll-behavior');
@@ -711,7 +731,10 @@ jQuery(document).ready(function ($) {
                         runCallbacks(r, wcForm);
                         $(document.body).trigger('wpdiscuz_comment_posted', [wcForm, data, currentSubmitBtn, r.data]);
                     } else if (r.data) {
-                        wpdiscuzAjaxObj.setCommentMessage(wpdiscuzAjaxObj.applyFilterOnPhrase(wpdiscuzAjaxObj[r.data], r.data, wcForm), 'error');
+                        var errMsg = typeof r.data === 'object' && r.data.error
+                            ? r.data.error
+                            : wpdiscuzAjaxObj.applyFilterOnPhrase(wpdiscuzAjaxObj[r.data], r.data, wcForm);
+                        wpdiscuzAjaxObj.setCommentMessage(errMsg, 'error');
                         runCallbacks(r, wcForm);
                     }
                 } else {
@@ -2411,14 +2434,37 @@ jQuery(document).ready(function ($) {
             });
         }
         var url = isNative ? wpdiscuzAjaxObj.url : wpdiscuzAjaxObj.customAjaxUrl;
-        console.log(url);
-        return $.ajax({
-            type: 'POST',
-            url: url,
-            data: data,
-            contentType: false,
-            processData: false
-        });
+
+        function doRequest() {
+            return $.ajax({type: 'POST', url: url, data: data, contentType: false, processData: false});
+        }
+
+        if (action !== 'wpdGetNonce' && wpdiscuzAjaxObj.nonceCookieName) {
+            var nonce = Cookies.get(wpdiscuzAjaxObj.nonceCookieName);
+            if (nonce) {
+                data.append('wpdiscuz_nonce', nonce);
+            } else {
+                var deferred = $.Deferred();
+                var nonceData = new FormData();
+                nonceData.append('action', 'wpdGetNonce');
+                getAjaxObj(isNative, false, nonceData).always(function () {
+                    var freshNonce = Cookies.get(wpdiscuzAjaxObj.nonceCookieName);
+                    if (freshNonce) {
+                        data.append('wpdiscuz_nonce', freshNonce);
+                    }
+                    doRequest()
+                        .done(function () {
+                            deferred.resolve.apply(deferred, arguments);
+                        })
+                        .fail(function () {
+                            deferred.reject.apply(deferred, arguments);
+                        });
+                });
+                return deferred.promise();
+            }
+        }
+
+        return doRequest();
     }
 
     wpdiscuzAjaxObj.getAjaxObj = getAjaxObj;
