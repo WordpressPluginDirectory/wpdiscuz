@@ -123,6 +123,7 @@ jQuery(document).ready(function ($) {
     var wpdiscuzLoadCount = 1;
     var userInteractedAt = 0;
     const isUpdateNonceWithAjax = wpdiscuzAjaxObj.isUpdateNonceWithAjax;
+    var wpdiscuzNonce = Cookies.get(wpdiscuzAjaxObj.nonceName + '_' + wpdiscuzCookiehash);
 
     if (isUpdateNonceWithAjax) {
         let wpdNonceRefreshDone = false;
@@ -138,10 +139,12 @@ jQuery(document).ready(function ($) {
                 document.removeEventListener(e, wpdNonceOnInteraction);
             });
 
-            if (!Cookies.get(wpdiscuzAjaxObj.nonceCookieName)) {
+            if (!wpdiscuzNonce) {
                 var nonceData = new FormData();
                 nonceData.append('action', 'wpdGetNonce');
-                getAjaxObj(isNativeAjaxEnabled, false, nonceData);
+                getAjaxObj(isNativeAjaxEnabled, false, nonceData).done(function (response) {
+                    wpdiscuzNonce = response.data[wpdiscuzAjaxObj.nonceName];
+                });
             }
         }
 
@@ -2439,18 +2442,17 @@ jQuery(document).ready(function ($) {
             return $.ajax({type: 'POST', url: url, data: data, contentType: false, processData: false});
         }
 
-        if (action !== 'wpdGetNonce' && wpdiscuzAjaxObj.nonceCookieName) {
-            var nonce = Cookies.get(wpdiscuzAjaxObj.nonceCookieName);
-            if (nonce) {
-                data.append('wpdiscuz_nonce', nonce);
+        if (action !== 'wpdGetNonce' && wpdiscuzAjaxObj.nonceName) {
+            if (wpdiscuzNonce) {
+                data.append(wpdiscuzAjaxObj.nonceName, wpdiscuzNonce);
             } else {
                 var deferred = $.Deferred();
                 var nonceData = new FormData();
                 nonceData.append('action', 'wpdGetNonce');
-                getAjaxObj(isNative, false, nonceData).always(function () {
-                    var freshNonce = Cookies.get(wpdiscuzAjaxObj.nonceCookieName);
-                    if (freshNonce) {
-                        data.append('wpdiscuz_nonce', freshNonce);
+                getAjaxObj(isNative, false, nonceData).always(function (response) {
+                    wpdiscuzNonce = response.data[wpdiscuzAjaxObj.nonceName];
+                    if (wpdiscuzNonce) {
+                        data.append(wpdiscuzAjaxObj.nonceName, wpdiscuzNonce);
                     }
                     doRequest()
                         .done(function () {

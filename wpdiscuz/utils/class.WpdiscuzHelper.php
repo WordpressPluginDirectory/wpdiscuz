@@ -63,10 +63,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
         }
         add_filter("wpdiscuz_comment_author", [$this, "umAuthorName"], 10, 2);
         add_action("add_meta_boxes", [&$this, "addRatingResetButton"], 10, 2);
-
-        add_filter("nonce_life", [&$this, "setNonceLife"], 15, 2);
         add_action("wpdiscuz_init", [&$this, "setNonceInCookies"]);
-
         add_action("save_post", [$this, "updatePostAuthorsTrs"]);
 
     }
@@ -167,14 +164,6 @@ class WpdiscuzHelper implements WpDiscuzConstants {
     }
 
     //================== Nonce==================================================
-    public function setNonceLife($lifetime, $action = -1) {
-        if (isset($action) && $action === $this->generateNonceKey()) {
-            return DAY_IN_SECONDS / 2;
-        }
-
-        return $lifetime;
-    }
-
     public function generateNonceKey() {
         return self::GLOBAL_NONCE_NAME;
     }
@@ -192,7 +181,6 @@ class WpdiscuzHelper implements WpDiscuzConstants {
             if (!$timeDependent) {
                 wp_die(__("Nonce is invalid.", "wpdiscuz"));
             }
-
             $this->setNonceInCookies($timeDependent, false);
         }
     }
