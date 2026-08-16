@@ -1,8 +1,9 @@
 ;
-var wpdiscuzLoadRichEditor = parseInt(wpdiscuzAjaxObj.loadRichEditor);
-if (wpdiscuzLoadRichEditor && document.querySelector('.wpdiscuz-textarea-wrap')) {
+let wpdiscuzLoadRichEditor = parseInt(wpdiscuzAjaxObj.loadRichEditor, 10);
+if (wpdiscuzLoadRichEditor) {
     var wpDiscuzEditor = new WpdEditor();
 }
+
 
 function wpdMessagesOnInit(message, type) {
     wpdiscuzAjaxObj.setCommentMessage(message, type);
@@ -79,14 +80,14 @@ jQuery(document).ready(function ($) {
     var isShowCaptchaForGuests = wpdiscuzAjaxObj.wc_captcha_show_for_guest == 1 && !isUserLoggedIn;
     var isShowCaptchaForMembers = wpdiscuzAjaxObj.wc_captcha_show_for_members == 1 && isUserLoggedIn;
     var wpdiscuzRecaptchaVersion = wpdiscuzAjaxObj.wpDiscuzReCaptchaVersion;
-    var commentListLoadType = parseInt(wpdiscuzAjaxObj.commentListLoadType);
-    var wpdiscuzPostId = parseInt(wpdiscuzAjaxObj.wc_post_id);
-    var commentListUpdateType = parseInt(wpdiscuzAjaxObj.commentListUpdateType);
-    var commentListUpdateTimer = parseInt(wpdiscuzAjaxObj.commentListUpdateTimer) * 1000;
-    var enableGuestsLiveUpdate = parseInt(wpdiscuzAjaxObj.liveUpdateGuests);
+    var commentListLoadType = parseInt(wpdiscuzAjaxObj.commentListLoadType, 10);
+    var wpdiscuzPostId = parseInt(wpdiscuzAjaxObj.wc_post_id, 10);
+    var commentListUpdateType = parseInt(wpdiscuzAjaxObj.commentListUpdateType, 10);
+    var commentListUpdateTimer = parseInt(wpdiscuzAjaxObj.commentListUpdateTimer, 10) * 1000;
+    var enableGuestsLiveUpdate = parseInt(wpdiscuzAjaxObj.liveUpdateGuests, 10);
     var loadLastCommentId = wpdiscuzAjaxObj.loadLastCommentId;
     var bubbleLastCommentId = loadLastCommentId;
-    var firstLoadWithAjax = parseInt(wpdiscuzAjaxObj.firstLoadWithAjax);
+    var firstLoadWithAjax = parseInt(wpdiscuzAjaxObj.firstLoadWithAjax, 10);
     var isRateEditable = parseInt(wpdiscuzAjaxObj.is_rate_editable, 10);
     if (Cookies.get('wpdiscuz_comments_sorting')) {
         Cookies.remove('wpdiscuz_comments_sorting', {path: ''});
@@ -97,24 +98,24 @@ jQuery(document).ready(function ($) {
     if (Cookies.get('wpdiscuz_last_visit')) {
         Cookies.remove('wpdiscuz_last_visit', {path: ''});
     }
-    var wordpressIsPaginate = parseInt(wpdiscuzAjaxObj.wordpressIsPaginate);
+    var wordpressIsPaginate = parseInt(wpdiscuzAjaxObj.wordpressIsPaginate, 10);
     var storeCommenterData = wpdiscuzAjaxObj.storeCommenterData;
-    var wpdiscuzUploader = parseInt(wpdiscuzAjaxObj.wmuEnabled);
+    var wpdiscuzUploader = parseInt(wpdiscuzAjaxObj.wmuEnabled, 10);
     var isCookiesEnabled = wpdiscuzAjaxObj.isCookiesEnabled;
     var wpdCookiesConsent = true;
     var wpdiscuzCookiehash = wpdiscuzAjaxObj.cookiehash;
-    var isLoadOnlyParentComments = parseInt(wpdiscuzAjaxObj.isLoadOnlyParentComments);
-    var enableDropAnimation = parseInt(wpdiscuzAjaxObj.enableDropAnimation) ? 500 : 0;
-    var isNativeAjaxEnabled = parseInt(wpdiscuzAjaxObj.isNativeAjaxEnabled);
+    var isLoadOnlyParentComments = parseInt(wpdiscuzAjaxObj.isLoadOnlyParentComments, 10);
+    var enableDropAnimation = parseInt(wpdiscuzAjaxObj.enableDropAnimation, 10) ? 500 : 0;
+    var isNativeAjaxEnabled = parseInt(wpdiscuzAjaxObj.isNativeAjaxEnabled, 10);
     var userInteractionCheck = parseInt(wpdiscuzAjaxObj.userInteractionCheck, 10);
-    var bubbleEnabled = parseInt(wpdiscuzAjaxObj.enableBubble);
-    var bubbleLiveUpdate = parseInt(wpdiscuzAjaxObj.bubbleLiveUpdate);
-    var bubbleHintTimeout = parseInt(wpdiscuzAjaxObj.bubbleHintTimeout);
-    var bubbleHintHideTimeout = parseInt(wpdiscuzAjaxObj.bubbleHintHideTimeout) ? parseInt(wpdiscuzAjaxObj.bubbleHintHideTimeout) : 5;
-    var bubbleShowNewCommentMessage = parseInt(wpdiscuzAjaxObj.bubbleShowNewCommentMessage);
+    var bubbleEnabled = parseInt(wpdiscuzAjaxObj.enableBubble, 10);
+    var bubbleLiveUpdate = parseInt(wpdiscuzAjaxObj.bubbleLiveUpdate, 10);
+    var bubbleHintTimeout = parseInt(wpdiscuzAjaxObj.bubbleHintTimeout, 10);
+    var bubbleHintHideTimeout = parseInt(wpdiscuzAjaxObj.bubbleHintHideTimeout, 10) ? parseInt(wpdiscuzAjaxObj.bubbleHintHideTimeout, 10) : 5;
+    var bubbleShowNewCommentMessage = parseInt(wpdiscuzAjaxObj.bubbleShowNewCommentMessage, 10);
     var bubbleLocation = wpdiscuzAjaxObj.bubbleLocation;
     var inlineFeedbackAttractionType = wpdiscuzAjaxObj.inlineFeedbackAttractionType;
-    var scrollSize = parseInt(wpdiscuzAjaxObj.scrollSize);
+    var scrollSize = parseInt(wpdiscuzAjaxObj.scrollSize, 10);
     scrollSize = scrollSize ? scrollSize : 32;
     var wpdiscuzAgreementFields = [];
     var reCaptchaWidgets = [];
@@ -122,36 +123,27 @@ jQuery(document).ready(function ($) {
     var addingComment = false;
     var wpdiscuzLoadCount = 1;
     var userInteractedAt = 0;
-    const isUpdateNonceWithAjax = wpdiscuzAjaxObj.isUpdateNonceWithAjax;
-    var wpdiscuzNonce = Cookies.get(wpdiscuzAjaxObj.nonceName + '_' + wpdiscuzCookiehash);
+    var wpdiscuzNonce = null;
+    var pendingNoncePromise = null;
 
-    if (isUpdateNonceWithAjax) {
-        let wpdNonceRefreshDone = false;
-        let wpdNonceEventsList = ['mousedown', 'mousemove', 'touchstart', 'scroll', 'keydown'];
-
-        function wpdNonceOnInteraction() {
-            if (wpdNonceRefreshDone) {
-                return;
-            }
-            wpdNonceRefreshDone = true;
-
-            wpdNonceEventsList.forEach(function (e) {
-                document.removeEventListener(e, wpdNonceOnInteraction);
-            });
-
-            if (!wpdiscuzNonce) {
-                var nonceData = new FormData();
-                nonceData.append('action', 'wpdGetNonce');
-                getAjaxObj(isNativeAjaxEnabled, false, nonceData).done(function (response) {
-                    wpdiscuzNonce = response.data[wpdiscuzAjaxObj.nonceName];
-                });
-            }
+    function ensureNonce(isNative) {
+        if (wpdiscuzNonce) {
+            return $.Deferred().resolve(wpdiscuzNonce).promise();
         }
-
-        wpdNonceEventsList.forEach(function (e) {
-            document.addEventListener(e, wpdNonceOnInteraction);
+        if (pendingNoncePromise) {
+            return pendingNoncePromise;
+        }
+        var nonceData = new FormData();
+        nonceData.append('action', 'wpdGetNonce');
+        pendingNoncePromise = getAjaxObj(isNative, false, nonceData).always(function (response) {
+            if (response && response.data) {
+                wpdiscuzNonce = response.data[wpdiscuzAjaxObj.nonceName];
+            }
+            pendingNoncePromise = null;
         });
+        return pendingNoncePromise;
     }
+
 
     var htmlScrollBehavior = $('html').css('scroll-behavior');
     var bodyScrollBehavior = $('body').css('scroll-behavior');
@@ -167,7 +159,6 @@ jQuery(document).ready(function ($) {
     function wpdEventTriggered(evt) {
         userInteractedAt = Math.ceil(Date.now() / 1000);
     }
-
 
     $("#wp-admin-bar-wpdiscuz > .ab-item").prepend("<img src='" + wpdiscuzAjaxObj.menu_icon + "' style='width:22px;height:22px;vertical-align:middle;'>");
     $(document).on('mouseover', '#wp-admin-bar-wpdiscuz', function () {
@@ -206,7 +197,7 @@ jQuery(document).ready(function ($) {
     });
 
     if (!wpdiscuzLoadRichEditor) {
-        $(document).delegate('textarea.wc_comment', 'input', function () {
+        $(document).on('input', 'textarea.wc_comment', function () {
             setTextareaCharCount($(this));
         });
 
@@ -292,7 +283,6 @@ jQuery(document).ready(function ($) {
         wpdiscuzAjaxObj.setCommentMessage(val + '<br/>' + wpdiscuzAjaxObj.wc_copied_to_clipboard, 'success', 5000);
     });
 
-
     $('body').on('click', '.wpdiscuz-nofollow,.wc_captcha_refresh_img,.wpd-load-more-submit', function (e) {
         e.preventDefault();
     });
@@ -331,7 +321,7 @@ jQuery(document).ready(function ($) {
         $('.wpdiscuz-subscribe-bar').slideToggle(enableDropAnimation);
     });
 //============================== reCAPTCHA ============================== //
-    if (parseInt(wpdiscuzAjaxObj.wpDiscuzIsShowOnSubscribeForm) && !isUserLoggedIn && wpdiscuzAjaxObj.wpDiscuzReCaptchaSK && $('#wpdiscuz-subscribe-form').length) {
+    if (parseInt(wpdiscuzAjaxObj.wpDiscuzIsShowOnSubscribeForm, 10) && !isUserLoggedIn && wpdiscuzAjaxObj.wpDiscuzReCaptchaSK && $('#wpdiscuz-subscribe-form').length) {
         if (wpdiscuzRecaptchaVersion === '2.0') {
             setTimeout(function () {
                 try {
@@ -682,7 +672,7 @@ jQuery(document).ready(function ($) {
     });
 
     function wpdiscuzSendComment(wcForm, data, currentSubmitBtn) {
-        $(document.body).trigger('wpdiscuz_before_comment_post', data, currentSubmitBtn);
+        $(document.body).trigger('wpdiscuz_before_send_comment', [wcForm, data, currentSubmitBtn]);
         getAjaxObj(isNativeAjaxEnabled, false, data)
             .done(function (r) {
                 $(currentSubmitBtn).addClass('wpd_not_clicked');
@@ -691,7 +681,7 @@ jQuery(document).ready(function ($) {
                         if (wpdiscuzAjaxObj.commentFormView === "collapsed") {
                             $('.wpd-form-foot', wcForm).slideUp(enableDropAnimation);
                         }
-                        r.data.wc_all_comments_count_new = parseInt(r.data.wc_all_comments_count_new);
+                        r.data.wc_all_comments_count_new = parseInt(r.data.wc_all_comments_count_new, 10);
                         $('.wpd-thread-info').html(r.data.wc_all_comments_count_before_threads_html);
                         $('.wpd-thread-info').attr('data-comments-count', r.data.wc_all_comments_count_new);
                         $('#wpd-bubble-all-comments-count').replaceWith(r.data.wc_all_comments_count_bubble_html);
@@ -715,6 +705,7 @@ jQuery(document).ready(function ($) {
                             $('.wpd-cookies-checkbox').prop('checked', false);
                         }
                         wcForm.get(0).reset();
+                        wpdClearDraft($('.wpdiscuz_unique_id', wcForm).val());
                         if (wpdiscuzLoadRichEditor) {
                             wpDiscuzEditor.createEditor('#wpd-editor-' + $('.wpdiscuz_unique_id', wcForm).val()).setContents([{insert: '\n'}]);
                         } else {
@@ -723,7 +714,7 @@ jQuery(document).ready(function ($) {
                         setCookieInForm(r.data);
                         $('.wmu-preview-wrap', wcForm).remove();
                         deleteAgreementFields();
-                        if (parseInt(wpdiscuzAjaxObj.scrollToComment)) {
+                        if (parseInt(wpdiscuzAjaxObj.scrollToComment, 10)) {
                             setTimeout(function () {
                                 unsetHtmlAndBodyScrollBehaviors();
                                 $('html, body').animate({
@@ -732,28 +723,31 @@ jQuery(document).ready(function ($) {
                             }, animateDelay);
                         }
                         runCallbacks(r, wcForm);
-                        $(document.body).trigger('wpdiscuz_comment_posted', [wcForm, data, currentSubmitBtn, r.data]);
+                        $(document.body).trigger('wpdiscuz_comment_post_success', [wcForm, data, currentSubmitBtn, r.data]);
                     } else if (r.data) {
                         var errMsg = typeof r.data === 'object' && r.data.error
                             ? r.data.error
                             : wpdiscuzAjaxObj.applyFilterOnPhrase(wpdiscuzAjaxObj[r.data], r.data, wcForm);
                         wpdiscuzAjaxObj.setCommentMessage(errMsg, 'error');
                         runCallbacks(r, wcForm);
+                        $(document.body).trigger('wpdiscuz_comment_post_error', [wcForm, data, currentSubmitBtn, r.data]);
                     }
                 } else {
                     wpdiscuzAjaxObj.setCommentMessage(r, 'error');
                 }
                 $('#wpdiscuz-loading-bar').fadeOut(250);
                 addingComment = false;
+                $(document.body).trigger('wpdiscuz_comment_post_complete', [wcForm, data, currentSubmitBtn]);
             })
             .fail(function (jqXHR, textStatus, errorThrown) {
                 console.log(errorThrown);
                 $(currentSubmitBtn).addClass('wpd_not_clicked');
                 $('#wpdiscuz-loading-bar').fadeOut(250);
+                $(document.body).trigger('wpdiscuz_comment_post_failed', [wcForm, data, currentSubmitBtn]);
             });
     }
 
-    $(document.body).on('wpdiscuz_comment_posted', function (e, wcForm, data, currentSubmitBtn, response) {
+    $(document.body).on('wpdiscuz_comment_post_success', function (e, wcForm, data, currentSubmitBtn, response) {
         const threadFilter = $('.wpd-thread-filter');
 
         if ((typeof response === 'undefined') || isNaN(response.wc_all_comments_count_new) || (typeof response.wc_all_comments_count_new === 'undefined') || !response.wc_all_comments_count_new) {
@@ -816,7 +810,7 @@ jQuery(document).ready(function ($) {
                 Cookies.set('comment_author_url_' + wpdiscuzCookiehash, weburl);
             }
         } else {
-            storeCommenterData = parseInt(storeCommenterData);
+            storeCommenterData = parseInt(storeCommenterData, 10);
             Cookies.set('comment_author_email_' + wpdiscuzCookiehash, email, {expires: storeCommenterData, path: '/'});
             Cookies.set('comment_author_' + wpdiscuzCookiehash, name, {expires: storeCommenterData, path: '/'});
             if (weburl.length) {
@@ -948,8 +942,10 @@ jQuery(document).ready(function ($) {
     });
 
     function wpdCancelOrSave(uniqueID, content) {
+        var editFormWrap = $('#wpd-comm-' + uniqueID + ' .wpdiscuz-edit-form-wrap');
         $('#wpd-comm-' + uniqueID + ' > .wpd-comment-wrap .wpd-comment-right .wpd_editable_comment').show();
-        $('#wpd-comm-' + uniqueID + ' .wpdiscuz-edit-form-wrap').replaceWith(content);
+        wpdReleaseEditors(editFormWrap);
+        editFormWrap.replaceWith(content);
         $('#wpd-comm-' + uniqueID + ' > .wpd-comment-wrap .wpd-comment-last-edited').show();
     }
 
@@ -1026,10 +1022,9 @@ jQuery(document).ready(function ($) {
                     if (r.success) {
                         wpdiscuzLoadCount++;
                         if (isFirstLoad) {
-                            $('.wpd-comment').remove();
+                            wpdRemoveComments($('.wpd-comment'));
                         }
-                        $('.wpdiscuz_single').remove();
-                        $('.wpdiscuz-comment-pagination').before(r.data.comment_list);
+                        wpdInsertLoadedComments(r.data.comment_list);
                         setLoadMoreVisibility(r, isFirstLoad && commentListLoadType !== 2);
                         isRun = false;
                         if (r.data.loadLastCommentId) {
@@ -1130,8 +1125,8 @@ jQuery(document).ready(function ($) {
                             likeCountDiv.attr('title', r.data.likeCount);
                             dislikeCountDiv.text(r.data.dislikeCountHumanReadable);
                             dislikeCountDiv.attr('title', r.data.dislikeCount);
-                            parseInt(r.data.likeCount) > 0 ? likeCountDiv.addClass('wpd-up') : likeCountDiv.removeClass('wpd-up');
-                            parseInt(r.data.dislikeCount) < 0 ? dislikeCountDiv.addClass('wpd-down') : dislikeCountDiv.removeClass('wpd-down');
+                            parseInt(r.data.likeCount, 10) > 0 ? likeCountDiv.addClass('wpd-up') : likeCountDiv.removeClass('wpd-up');
+                            parseInt(r.data.dislikeCount, 10) < 0 ? dislikeCountDiv.addClass('wpd-down') : dislikeCountDiv.removeClass('wpd-down');
                         }
                         var voteUpDiv = $('#comment-' + commentID + ' .wpd-comment-footer .wpd-vote-up');
                         var voteDownDiv = $('#comment-' + commentID + ' .wpd-comment-footer .wpd-vote-down');
@@ -1183,7 +1178,7 @@ jQuery(document).ready(function ($) {
                 .done(function (r) {
                     if (typeof r === 'object') {
                         if (r.success) {
-                            $('#wpdcom .wpd-comment').remove();
+                            wpdRemoveComments($('#wpdcom .wpd-comment'));
                             $('#wpdcom .wpd-thread-list').prepend(r.data.message);
                             setLoadMoreVisibility(r, false);
                             wpdiscuzLoadCount = 1;
@@ -1214,7 +1209,9 @@ jQuery(document).ready(function ($) {
                             if (r.success) {
                                 var scrollToSelector = '#comment-' + commentId;
                                 if ($('#comment-' + r.data.parentCommentID).length) {
-                                    $('#comment-' + r.data.parentCommentID).parents('[id^=wpd-comm-' + r.data.parentCommentID + ']').replaceWith(r.data.message);
+                                    var parentThread = $('#comment-' + r.data.parentCommentID).parents('[id^="wpd-comm-' + r.data.parentCommentID + '_"]');
+                                    wpdReleaseEditors(parentThread);
+                                    parentThread.replaceWith(r.data.message);
                                 } else {
                                     $('.wpd-thread-list').prepend(r.data.message);
                                 }
@@ -1278,7 +1275,7 @@ jQuery(document).ready(function ($) {
                     if (typeof r === 'object') {
                         if (r.success) {
                             liveUpdateImmediately(r);
-                            r.data.wc_all_comments_count_new = parseInt(r.data.wc_all_comments_count_new);
+                            r.data.wc_all_comments_count_new = parseInt(r.data.wc_all_comments_count_new, 10);
                             $('.wpd-thread-info').html(r.data.wc_all_comments_count_before_threads_html);
                             $('.wpd-thread-info').attr('data-comments-count', r.data.wc_all_comments_count_new);
                             $('#wpd-bubble-all-comments-count').replaceWith(r.data.wc_all_comments_count_bubble_html);
@@ -1349,10 +1346,12 @@ jQuery(document).ready(function ($) {
         if (wpdiscuzLoadRichEditor) {
             setTimeout(function () {
                 wpDiscuzEditor.createEditor('#wpd-editor-' + uniqueId).focus();
+                wpdRestoreDraft(uniqueId);
             }, enableDropAnimation);
         } else {
             setTimeout(function () {
                 $('#wc-textarea-' + uniqueId).trigger('focus');
+                wpdRestoreDraft(uniqueId);
             }, enableDropAnimation);
         }
         secondaryFormWrapper.slideToggle(enableDropAnimation, function () {
@@ -1363,6 +1362,457 @@ jQuery(document).ready(function ($) {
     function replaceUniqueId(uniqueId) {
         var secondaryForm = $('#wpdiscuz_hidden_secondary_form').html();
         return secondaryForm.replace(/wpdiscuzuniqueid/g, uniqueId);
+    }
+
+//============================== COMMENT DRAFTS ============================== //
+    /**
+     * Comment text is kept in session storage while it is being written, so
+     * that sorting, filtering, a reload or a stray back button do not throw it
+     * away. Session storage rather than local storage: a draft belongs to the
+     * tab it was written in and goes away with it, which keeps drafts off
+     * shared computers and keeps them from ever going stale.
+     *
+     * Text only. Names, e-mail addresses and the other author fields stay out
+     * of storage, and edit forms are left alone because their content belongs
+     * to a comment that is already published.
+     *
+     * Sites that would rather not store anything can set storeCommentDrafts to
+     * 0 through the wpdiscuz_js_options filter.
+     */
+    var wpdDraftsEnabled = (function () {
+        if (typeof wpdiscuzAjaxObj.storeCommentDrafts !== 'undefined' && !parseInt(wpdiscuzAjaxObj.storeCommentDrafts, 10)) {
+            return false;
+        }
+        try {
+            // Storage can exist and still throw, as in Safari's private mode.
+            window.sessionStorage.setItem('wpd-draft-probe', '1');
+            window.sessionStorage.removeItem('wpd-draft-probe');
+            return true;
+        } catch (e) {
+            return false;
+        }
+    })();
+
+    var wpdDraftTimers = {};
+
+    function wpdDraftKey(uniqueId) {
+        var blogId = parseInt(wpdiscuzAjaxObj.wc_blog_id, 10) || 1;
+        return 'wpd-draft-' + blogId + '-' + wpdiscuzPostId + '-' + uniqueId;
+    }
+
+    /**
+     * Unique id of the form a field belongs to, or an empty string for the edit
+     * forms and anything else that is not a comment form.
+     */
+    function wpdDraftUniqueId(field) {
+        var form = field.closest('.wpd-form'),
+            uniqueId = $('.wpdiscuz_unique_id', form).val();
+        return uniqueId && uniqueId.indexOf('edit_') !== 0 ? uniqueId : '';
+    }
+
+    /**
+     * The text a form currently holds, or null when that form is no longer on
+     * the page. The two have to stay apart: an empty form means the draft is
+     * finished with and can go, whereas a form that is gone says nothing about
+     * what the visitor wanted and must not be read as an instruction to throw
+     * anything away.
+     */
+    function wpdReadFormText(uniqueId) {
+        if (wpdiscuzLoadRichEditor) {
+            var editor = wpDiscuzEditor.getEditor('#wpd-editor-' + uniqueId);
+            if (!editor || !document.body.contains(editor.root)) {
+                return null;
+            }
+            // Read the markup, not the editor's model. This runs on the input
+            // event, and the model is only brought up to date when the editor's
+            // own observer next runs, so asking it here can answer for the
+            // keystroke before last, or for none at all on the first one.
+            var root = $(editor.root);
+            return $.trim(root.text()).length || $('img', root).length ? editor.root.innerHTML : '';
+        }
+        var textarea = $('#wc-textarea-' + uniqueId);
+        return textarea.length ? $.trim(textarea.val() || '') : null;
+    }
+
+    function wpdWriteDraft(uniqueId, text) {
+        if (!wpdDraftsEnabled || !uniqueId) {
+            return;
+        }
+        try {
+            if (text) {
+                window.sessionStorage.setItem(wpdDraftKey(uniqueId), text);
+            } else {
+                window.sessionStorage.removeItem(wpdDraftKey(uniqueId));
+            }
+        } catch (e) {
+            // Out of quota or storage denied mid-session. The draft simply is
+            // not kept; nothing on the page depends on it having worked.
+        }
+    }
+
+    /**
+     * Writes out what was captured while the visitor was typing. The text is
+     * taken at keystroke time rather than read back when the timer fires, so a
+     * form that disappears inside the debounce window, to a sort or a filter,
+     * cannot cost the visitor the keystrokes the timer was holding.
+     */
+    function wpdFlushDraft(uniqueId) {
+        var pending = wpdDraftTimers[uniqueId];
+        if (!pending) {
+            return;
+        }
+        clearTimeout(pending.timer);
+        delete wpdDraftTimers[uniqueId];
+        wpdWriteDraft(uniqueId, pending.text);
+    }
+
+    function wpdDropPendingDraft(uniqueId) {
+        if (wpdDraftTimers[uniqueId]) {
+            clearTimeout(wpdDraftTimers[uniqueId].timer);
+            delete wpdDraftTimers[uniqueId];
+        }
+    }
+
+    function wpdClearDraft(uniqueId) {
+        if (!wpdDraftsEnabled || !uniqueId) {
+            return;
+        }
+        wpdDropPendingDraft(uniqueId);
+        wpdWriteDraft(uniqueId, '');
+    }
+
+    /**
+     * Puts a stored draft back into a form that has just been opened. A form
+     * the visitor has already typed into is never overwritten.
+     */
+    function wpdRestoreDraft(uniqueId) {
+        if (!wpdDraftsEnabled || !uniqueId || wpdReadFormText(uniqueId)) {
+            return;
+        }
+        var draft;
+        try {
+            draft = window.sessionStorage.getItem(wpdDraftKey(uniqueId));
+        } catch (e) {
+            return;
+        }
+        if (!draft) {
+            return;
+        }
+        var editor = wpdiscuzLoadRichEditor ? wpDiscuzEditor.getEditor('#wpd-editor-' + uniqueId) : null;
+        if (editor) {
+            editor.clipboard.dangerouslyPasteHTML(0, draft);
+            editor.update();
+            editor.setSelection(editor.getLength(), 0);
+        } else {
+            var textarea = $('#wc-textarea-' + uniqueId);
+            if (!textarea.length) {
+                return;
+            }
+            textarea.val(draft);
+            setTextareaCharCount(textarea);
+        }
+        $(document.body).trigger('wpdiscuz_draft_restored', [uniqueId, draft]);
+    }
+
+    if (wpdDraftsEnabled) {
+        $('body').on('input', '#wpdcom .ql-editor, #wpdcom textarea.wc_comment', function () {
+            var uniqueId = wpdDraftUniqueId($(this)),
+                text;
+            if (!uniqueId) {
+                return;
+            }
+            text = wpdReadFormText(uniqueId);
+            if (text === null) {
+                return;
+            }
+            wpdDropPendingDraft(uniqueId);
+            wpdDraftTimers[uniqueId] = {
+                text: text,
+                timer: setTimeout(function () {
+                    wpdFlushDraft(uniqueId);
+                }, 400)
+            };
+        });
+
+        // Write out whatever the debounce has not got to yet.
+        window.addEventListener('beforeunload', function () {
+            for (var uniqueId in wpdDraftTimers) {
+                if (wpdDraftTimers.hasOwnProperty(uniqueId)) {
+                    wpdFlushDraft(uniqueId);
+                }
+            }
+        });
+
+        // The main form is on the page from the start, so it is filled here
+        // rather than when a form is opened. Reply forms are filled by
+        // cloneSecondaryForm().
+        if ($('#wpd-editor-0_0, #wc-textarea-0_0').length) {
+            wpdRestoreDraft('0_0');
+        }
+    }
+//============================== /COMMENT DRAFTS ============================== //
+
+    /**
+     * Drops the rich editor instances living inside the given nodes, right
+     * before those nodes leave the document. wpDiscuzEditor keeps its editors
+     * in a registry keyed by comment unique id, so an instance left pointing at
+     * removed markup makes the next form opened for that comment come up empty.
+     */
+    function wpdReleaseEditors($nodes) {
+        if (!wpdiscuzLoadRichEditor || !$nodes || !$nodes.length) {
+            return;
+        }
+        $nodes.each(function () {
+            wpDiscuzEditor.removeEditorsIn(this);
+        });
+    }
+
+    /**
+     * Removes comment markup from the list without leaving stale editors behind.
+     */
+    function wpdRemoveComments($nodes) {
+        wpdReleaseEditors($nodes);
+        $nodes.remove();
+    }
+
+    /**
+     * Returns the nodes matching the selector inside the given set, the set
+     * itself included when it matches.
+     */
+    function wpdFindIn($nodes, selector) {
+        return $nodes.filter(selector).add($nodes.find(selector));
+    }
+
+    /**
+     * Appends a freshly loaded batch to the list, reconciling it with the
+     * threads pinned to the top of the list for a #comment-N link or for the
+     * single/hottest comment options.
+     *
+     * A pinned thread is rendered outside the pagination order, so its root
+     * eventually arrives again inside a normal batch and one of the two copies
+     * has to go. Until that happens the pinned copy has to stay: dropping it on
+     * every batch made the comment the visitor followed a link to disappear
+     * from the page, and took any reply or edit form they had already typed
+     * into along with it.
+     */
+    function wpdInsertLoadedComments(commentList) {
+        var pinnedThreads = $('.wpd-thread-list').children('.wpdiscuz_single').get();
+        $('.wpdiscuz-comment-pagination').before(commentList);
+        for (var i = 0; i < pinnedThreads.length; i++) {
+            wpdMergePinnedThread(pinnedThreads[i]);
+        }
+    }
+
+    /**
+     * Decides what happens to one pinned thread now that a new batch is in the
+     * list. Three outcomes:
+     *  - the batch does not carry this thread, so it is left alone;
+     *  - the batch carries it and every form holding unsaved text has somewhere
+     *    to land, so the forms move over and the pinned copy goes;
+     *  - the batch carries it but some form holding unsaved text has nowhere to
+     *    land, because the comment it belongs to was trashed or unapproved in
+     *    the meantime. The pinned copy is kept and the batch's copy dropped
+     *    instead, so that nothing is lost and the thread is still shown once.
+     */
+    function wpdMergePinnedThread(pinnedThread) {
+        var loadedThread = $('[id="' + pinnedThread.id + '"]').not(pinnedThread);
+        if (!loadedThread.length) {
+            return;
+        }
+        var openForms = wpdCollectOpenForms(pinnedThread, loadedThread);
+        if (wpdHasHomelessContent(openForms)) {
+            wpdRemoveComments(loadedThread);
+            return;
+        }
+        var movedForm = openForms.length ? openForms[0].form.get(0) : null,
+            anchor = movedForm ? movedForm : pinnedThread,
+            position = wpdSnapshotPosition(anchor),
+            focus = wpdSaveFormFocus(openForms);
+        wpdCarryHighlight(pinnedThread, loadedThread);
+        for (var i = 0; i < openForms.length; i++) {
+            wpdMoveOpenForm(openForms[i]);
+        }
+        wpdRemoveComments($(pinnedThread));
+        wpdKeepScrollPosition(movedForm ? movedForm : loadedThread.get(0), position);
+        wpdRestoreFormFocus(focus);
+    }
+
+    /**
+     * Finds the reply and edit forms open inside a pinned thread, each with the
+     * place it would move to in the copy that arrived with the new batch.
+     */
+    function wpdCollectOpenForms(pinnedThread, loadedThread) {
+        var openForms = [];
+        // The <form> inside a reply wrapper repeats the wrapper class, so the
+        // wrapper is matched by its id to keep the two from being torn apart.
+        $('[id^="wpd-secondary-form-wrapper-"], .wpdiscuz-edit-form-wrap', pinnedThread).each(function () {
+            var form = $(this),
+                isEdit = form.hasClass('wpdiscuz-edit-form-wrap'),
+                uniqueId = getUniqueID(form, 0),
+                host = wpdFindIn(loadedThread, '[id="wpd-comm-' + uniqueId + '"]'),
+                commentText = host.children('.wpd-comment-wrap').find('.wpd-comment-right .wpd-comment-text').first(),
+                formAnchor = host.children('[id="wpdiscuz_form_anchor-' + uniqueId + '"]');
+            openForms.push({
+                uniqueId: uniqueId,
+                form: form,
+                host: host,
+                isEdit: isEdit,
+                target: isEdit ? commentText : formAnchor,
+                hasContent: wpdFormHasContent(form)
+            });
+        });
+        return openForms;
+    }
+
+    /**
+     * Tells whether any form holds text that has nowhere to go.
+     */
+    function wpdHasHomelessContent(openForms) {
+        for (var i = 0; i < openForms.length; i++) {
+            if (openForms[i].hasContent && !openForms[i].target.length) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Tells whether a form holds work the visitor would notice losing. Add-ons
+     * that put content of their own in the form, such as uploads, stickers or
+     * recordings, can report it by setting state.hasContent to true on the
+     * wpdiscuz_form_has_content event.
+     *
+     * Add-ons can only ever add to what is found here, never take away: a
+     * handler that answered "no" for a form the visitor had typed into would
+     * hand back exactly the data loss this is here to prevent. The flag latches
+     * for the same reason, so that an add-on which has nothing to report cannot
+     * put out the one raised by an add-on that has.
+     */
+    function wpdFormHasContent(form) {
+        var editor = $('.ql-editor', form),
+            hasContent,
+            flagged = false,
+            state = {};
+        if (editor.length) {
+            hasContent = $.trim(editor.text()).length > 0 || $('img', editor).length > 0;
+        } else {
+            hasContent = $.trim($('.wc_comment', form).val() || '').length > 0;
+        }
+        Object.defineProperty(state, 'hasContent', {
+            enumerable: true,
+            get: function () {
+                return flagged;
+            },
+            set: function (value) {
+                flagged = flagged || value === true;
+            }
+        });
+        $(document.body).trigger('wpdiscuz_form_has_content', [form, state, hasContent]);
+        return hasContent || flagged;
+    }
+
+    /**
+     * Moves one open form onto the comment that replaces its current host. The
+     * form node itself travels, so the rich editor instance bound to it, the
+     * author fields, the custom fields and anything an add-on put inside all
+     * come along untouched.
+     */
+    function wpdMoveOpenForm(openForm) {
+        if (!openForm.target.length) {
+            return;
+        }
+        if (openForm.isEdit) {
+            openForm.target.replaceWith(openForm.form);
+            openForm.host.children('.wpd-comment-wrap').find('.wpd-comment-right .wpd_editable_comment').hide();
+            openForm.host.children('.wpd-comment-wrap').find('.wpd-comment-last-edited').hide();
+        } else {
+            openForm.target.before(openForm.form);
+            openForm.host.children('.wpd-comment-wrap').find('.wpd-reply-button').addClass('wpdiscuz-clonned');
+        }
+    }
+
+    /**
+     * Keeps the "this is the comment you followed a link to" highlight on the
+     * copy that survives, so the visitor does not lose their place.
+     */
+    function wpdCarryHighlight(pinnedThread, loadedThread) {
+        $(pinnedThread).find('.wpd-new-loaded-comment').addBack('.wpd-new-loaded-comment').each(function () {
+            wpdFindIn(loadedThread, '[id="' + this.id + '"]').addClass('wpd-new-loaded-comment');
+        });
+    }
+
+    /**
+     * Records where the caret is before the forms are moved. Moving a rich
+     * editor or a textarea in the document blurs it and drops the selection,
+     * which is very noticeable when infinite scroll pulls in a batch while the
+     * visitor is still typing.
+     */
+    function wpdSaveFormFocus(openForms) {
+        for (var i = 0; i < openForms.length; i++) {
+            var form = openForms[i].form.get(0),
+                active = document.activeElement,
+                editorId,
+                editor;
+            if (!active || (active !== form && !$.contains(form, active))) {
+                continue;
+            }
+            editorId = openForms[i].isEdit ? '#wpd-editor-edit_' + openForms[i].uniqueId : '#wpd-editor-' + openForms[i].uniqueId;
+            editor = wpdiscuzLoadRichEditor ? wpDiscuzEditor.getEditor(editorId) : null;
+            if (editor) {
+                return {editor: editor, range: editor.getSelection()};
+            }
+            return {
+                element: active,
+                start: typeof active.selectionStart === 'number' ? active.selectionStart : null,
+                end: active.selectionEnd
+            };
+        }
+        return null;
+    }
+
+    function wpdRestoreFormFocus(focus) {
+        if (!focus) {
+            return;
+        }
+        if (focus.editor) {
+            focus.editor.focus();
+            if (focus.range) {
+                focus.editor.setSelection(focus.range.index, focus.range.length);
+            }
+        } else if (focus.element) {
+            focus.element.focus();
+            if (focus.start !== null) {
+                focus.element.setSelectionRange(focus.start, focus.end);
+            }
+        }
+    }
+
+    function wpdSnapshotPosition(element) {
+        var rect = element.getBoundingClientRect();
+        return {
+            top: rect.top,
+            visible: rect.top < $(window).height() && rect.bottom > 0
+        };
+    }
+
+    /**
+     * Holds a thread the visitor is looking at still in the viewport. Without
+     * this the page jumps by however far the thread travelled from the top of
+     * the list down to its real place in the batch. Threads that were off
+     * screen are left alone, otherwise clicking load more at the bottom of the
+     * page would drag the visitor along with them.
+     */
+    function wpdKeepScrollPosition(element, position) {
+        if (!element || !position.visible) {
+            return;
+        }
+        var delta = element.getBoundingClientRect().top - position.top;
+        if (!delta) {
+            return;
+        }
+        unsetHtmlAndBodyScrollBehaviors();
+        window.scrollBy(0, delta);
+        restoreHtmlAndBodyScrollBehaviors();
     }
 
     function getUniqueID(field, isMain) {
@@ -1399,7 +1849,7 @@ jQuery(document).ready(function ($) {
                 depth = getParentDepth(value, true);
             }
         });
-        return parseInt(depth) + 1;
+        return parseInt(depth, 10) + 1;
     }
 
     function getParentDepth(depthValue, isNumberPart) {
@@ -1514,7 +1964,9 @@ jQuery(document).ready(function ($) {
                 btn.addClass('wpd_not_clicked');
                 if (typeof r === 'object') {
                     if (r.success) {
-                        $('#wpd-comm-' + uniqueId).replaceWith(r.data.comment_list);
+                        var thread = $('#wpd-comm-' + uniqueId);
+                        wpdReleaseEditors(thread);
+                        thread.replaceWith(r.data.comment_list);
                         $('#wpd-comm-' + uniqueId + ' .wpd-toggle .fas').removeClass('fa-chevron-down').addClass('fa-chevron-up');
                         $('#wpd-comm-' + uniqueId + ' .wpd-toggle .wpd-view-replies .wpd-view-replies-text').text(wpdiscuzAjaxObj.wc_hide_replies_text);
                         $('#wpd-comm-' + uniqueId + ' .wpd-toggle').attr('wpd-tooltip', wpdiscuzAjaxObj.wc_hide_replies_text);
@@ -1585,125 +2037,116 @@ jQuery(document).ready(function ($) {
             });
     });
 
+
     $('body').on('click', '.wpd-filter.wpd_not_clicked[data-filter-type]', function () {
-        var btn = $(this);
-        var type = btn.attr('data-filter-type');
-        wpdiscuzAjaxObj.resetActiveFilters('.wpdf-' + type);
-        btn.removeClass('wpd_not_clicked');
-        $('.fas', btn).addClass('fa-pulse fa-spinner');
-        var data = new FormData();
+        const btn = $(this);
+        const type = btn.attr('data-filter-type');
+        wpdiscuzAjaxObj.resetActiveFilters(btn);
+
+        btn.toggleClass('wpdf-active wpd_not_clicked');
+        const icon = btn.find('i');
+        const iconHasClassFas = icon.hasClass('fas');
+        const iconClasses = icon.attr('class').match(/fa-[\w-]+/g) || [];
+        iconClasses.forEach(className => {
+            icon.removeClass(className);
+        })
+        $(icon).addClass('fa-pulse fa-spinner');
+        if (!iconHasClassFas) {
+            $(icon).addClass('fas');
+        }
+        wpdiscuzLoadCount = 1;
+
+        const data = new FormData();
         data.append('action', 'wpdLoadMoreComments');
-        var sorting = $('.wpdiscuz-sort-button-active').attr('data-sorting');
+        data.append('lastParentId', 0);
+        data.append('offset', 0);
+        data.append('wpdType', btn.hasClass('wpdf-active') ? type : '');
+        data.append('isFirstLoad', 1);
+
+        const sorting = $('.wpdiscuz-sort-button-active').attr('data-sorting');
         if (sorting) {
             data.append('sorting', sorting);
         }
-        data.append('lastParentId', 0);
-        data.append('offset', 0);
-        wpdiscuzLoadCount = 1;
-        data.append('wpdType', btn.hasClass('wpdf-active') ? '' : type);
-        data.append('isFirstLoad', 1);
-        if ($(this).hasClass('wpdf-inline')) {
-            if ($(this).hasClass('wpdf-active')) {
-                $('.wpd-comment-info-bar').hide();
+
+        const btnIsActive = btn.hasClass('wpdf-active');
+
+        getAjaxObj(isNativeAjaxEnabled, false, data).done(function (r) {
+            if (typeof r === 'object' && r.success) {
+                $('.wpd-load-comments').remove();
+                wpdRemoveComments($('.wpd-comment'));
+                $('.wpd-thread-list').prepend(r.data.comment_list);
+                setLoadMoreVisibility(r);
+                loadLastCommentId = r.data.loadLastCommentId;
+                $('.wpd-load-more-submit').blur();
+                runCallbacks(r);
+                $(document.body).trigger('wpdiscuz_filtering_success', [btn, type, btnIsActive]);
             } else {
-                $('.wpd-comment-info-bar').css('display', 'flex');
+                $(document.body).trigger('wpdiscuz_filtering_fail', [btn, type, btnIsActive]);
             }
-        } else {
-            $('.wpd-comment-info-bar').hide();
+        }).fail(function (jqXHR, textStatus, errorThrown) {
+            console.log(errorThrown);
+        }).always(function () {
+            $('#wpdiscuz-loading-bar').fadeOut(250);
+            btn.addClass('wpd_not_clicked')
+            icon.removeClass('fa-pulse fa-spinner');
+            icon.addClass(iconClasses.join(' '));
+            if (!iconHasClassFas) {
+                icon.removeClass('fas');
+            }
+            $(document.body).trigger('wpdiscuz_filtering_done', [btn, type, btnIsActive]);
+        });
+    });
+
+    $('body').on('wpdiscuz_filtering_success', function (e, btn, type, isActive) {
+
+        if (type !== 'inline') {
+            if (isActive) {
+                $('.wpd-inline-filter-cta').remove();
+            }
+            return;
         }
-        getAjaxObj(isNativeAjaxEnabled, false, data)
-            .done(function (r) {
-                btn.addClass('wpd_not_clicked');
-                $('.fas', btn).removeClass('fa-pulse fa-spinner');
-                if (typeof r === 'object') {
-                    if (r.success) {
-                        btn.toggleClass('wpdf-active');
-                        $('.wpd-load-comments').remove();
-                        $('.wpd-comment').remove();
-                        $('.wpd-thread-list').prepend(r.data.comment_list);
-                        setLoadMoreVisibility(r);
-                        loadLastCommentId = r.data.loadLastCommentId;
-                        $('.wpd-load-more-submit').blur();
-                        runCallbacks(r);
-                    }
-                }
-                $('#wpdiscuz-loading-bar').fadeOut(250);
-            })
-            .fail(function (jqXHR, textStatus, errorThrown) {
-                console.log(errorThrown);
-                $('#wpdiscuz-loading-bar').fadeOut(250);
-            });
-    });
+        if (isActive) {
+            buildInlineFilterCta(btn);
+        } else {
+            $('.wpd-inline-filter-cta').remove();
+        }
 
-    $('body').on('click', '.wpdf-reacted.wpd_not_clicked', function () {
-        var btn = $(this);
-        btn.removeClass('wpd_not_clicked');
-        $('.fas', btn).addClass('fa-pulse fa-spinner');
-        var data = new FormData();
-        data.append('action', 'wpdMostReactedComment');
-        getAjaxObj(isNativeAjaxEnabled, false, data)
-            .done(function (r) {
-                btn.addClass('wpd_not_clicked');
-                $('.fas', btn).removeClass('fa-pulse fa-spinner');
-                if (typeof r === 'object') {
-                    if (r.success) {
-                        if ($('#comment-' + r.data.parentCommentID).length) {
-                            $('#comment-' + r.data.parentCommentID).parents('[id^=wpd-comm-' + r.data.parentCommentID + ']').replaceWith(r.data.message);
-                        } else if (!$('#comment-' + r.data.commentId).length) {
-                            $('.wpd-thread-list').prepend(r.data.message);
-                        }
 
-                        runCallbacks(r);
-                        unsetHtmlAndBodyScrollBehaviors();
-                        $('html, body').animate({
-                            scrollTop: $('#comment-' + r.data.commentId).offset().top - scrollSize
-                        }, 1000, restoreHtmlAndBodyScrollBehaviors);
-                    }
-                }
-            })
-            .fail(function (jqXHR, textStatus, errorThrown) {
-                console.log(errorThrown);
-                $('.fas', btn).removeClass('fa-pulse fa-spinner');
-            });
-    });
+    })
 
-    $('body').on('click', '.wpdf-hottest.wpd_not_clicked', function () {
-        var btn = $(this);
-        btn.removeClass('wpd_not_clicked');
-        $('.fas', btn).addClass('fa-pulse fa-spinner');
-        var data = new FormData();
-        data.append('action', 'wpdHottestThread');
-        getAjaxObj(isNativeAjaxEnabled, false, data)
-            .done(function (r) {
-                btn.addClass('wpd_not_clicked');
-                $('.fas', btn).removeClass('fa-pulse fa-spinner');
-                if (typeof r === 'object') {
-                    if (r.success) {
-                        if ($('#comment-' + r.data.commentId).length) {
-                            $('#comment-' + r.data.commentId).parents('[id^=wpd-comm-' + r.data.commentId + ']').replaceWith(r.data.message);
-                        } else {
-                            $('.wpd-thread-list').prepend(r.data.message);
-                        }
+    function buildInlineFilterCta(btn) {
+        const data = new FormData();
+        data.append('action', 'wpdGetInlineFilterCta');
 
-                        runCallbacks(r);
+        getAjaxObj(isNativeAjaxEnabled, false, data).done(function (response) {
+            if (typeof response !== 'object' || !response.success || !response.data.html) {
+                return;
+            }
+            $('.wpd-filter-container').empty().append($(response.data.html)).removeClass('wpdiscuz-hidden');
+        });
 
-                        unsetHtmlAndBodyScrollBehaviors();
-                        $('html, body').animate({
-                            scrollTop: $('#comment-' + r.data.commentId).offset().top - scrollSize
-                        }, 1000, restoreHtmlAndBodyScrollBehaviors);
-                    }
-                }
-            })
-            .fail(function (jqXHR, textStatus, errorThrown) {
-                console.log(errorThrown);
-                $('.fas', btn).removeClass('fa-pulse fa-spinner');
-            });
-    });
+    }
+
+    $('body').on('wpdiscuz_filtering_done', function (e, btn, type, isActive) {
+        if ($('.wpd-filter.wpdf-active').length === 0) {
+            $('.wpd-filter-container').addClass('wpdiscuz-hidden').empty();
+        } else if ($('.wpd-filter-container').children().length) {
+            $('.wpd-filter-container').removeClass('wpdiscuz-hidden');
+        }
+    })
+
+    wpdiscuzAjaxObj.resetActiveFilters = function (currentItem) {
+        var $active = $('.wpd-filter.wpdf-active');
+        if (currentItem) {
+            $active = $active.not(currentItem);
+        }
+        $active.removeClass('wpdf-active');
+    };
+
 
     $('body').on('click', '.wpd-filter-view-all', function () {
         $('.wpdf-inline.wpdf-active.wpd_not_clicked').trigger('click');
     });
-
 
     function addAgreementInCookie(wcForm) {
         $('.wpd-agreement-checkbox', wcForm).each(function () {
@@ -1964,7 +2407,9 @@ jQuery(document).ready(function ($) {
             if (!addingComment) {
                 if (typeof r === 'object') {
                     r.commentIDsToRemove.forEach(function (id) {
-                        $('[id^=wpd-comm-' + id + ']').remove();
+                        // The trailing separator matters: without it comment 12
+                        // also matches the wrappers of 120, 121 and so on.
+                        wpdRemoveComments($('[id^="wpd-comm-' + id + '_"]'));
                     });
                     if (r.ids.length) {
                         if (commentListUpdateType) {
@@ -1976,7 +2421,7 @@ jQuery(document).ready(function ($) {
                             }
                         });
                         var timeout = 5000;
-                        bubbleLastCommentId = parseInt(r.ids[r.ids.length - 1]);
+                        bubbleLastCommentId = parseInt(r.ids[r.ids.length - 1], 10);
                         bubbleNewCommentIds = bubbleNewCommentIds.concat(r.ids);
                         if (bubbleShowNewCommentMessage && r.commentText) {
                             $('#wpd-bubble-author-avatar').html(r.avatar);
@@ -1987,7 +2432,7 @@ jQuery(document).ready(function ($) {
                             $('#wpd-bubble-notification-message').show();
                             timeout = 10000;
                         }
-                        var count = parseInt($('.wpd-new-comments-count').text());
+                        var count = parseInt($('.wpd-new-comments-count').text(), 10);
                         count += r.ids.length;
                         $('#wpd-bubble-wrapper').removeClass('wpd-new-comment-added');
                         $('#wpd-bubble-wrapper').addClass('wpd-new-comment-added');
@@ -1998,7 +2443,7 @@ jQuery(document).ready(function ($) {
                         $('.wpd-new-comments-count').text(count);
                         $('#wpd-bubble-count').addClass('wpd-new-comments');
                     }
-                    r.all_comments_count = parseInt(r.all_comments_count);
+                    r.all_comments_count = parseInt(r.all_comments_count, 10);
                     $('#wpd-bubble-all-comments-count').replaceWith(r.all_comments_count_bubble_html);
                     if (!$('.wpd-reviews-tab').length) {
                         $('.wpd-thread-info').html(r.all_comments_count_before_threads_html);
@@ -2100,7 +2545,7 @@ jQuery(document).ready(function ($) {
                         if (r.success) {
                             form[0].reset();
                             hideInlineForms();
-                            var newCount = parseInt(r.data.newCount);
+                            var newCount = parseInt(r.data.newCount, 10);
                             var countEl = clickedButton.parents('.wpd-inline-icon-wrapper').find('.wpd-inline-icon-count');
                             countEl.text(newCount);
                             if (newCount) {
@@ -2108,7 +2553,7 @@ jQuery(document).ready(function ($) {
                             } else {
                                 countEl.removeClass('wpd-has-comments');
                             }
-                            r.data.allCommentsCountNew = parseInt(r.data.allCommentsCountNew);
+                            r.data.allCommentsCountNew = parseInt(r.data.allCommentsCountNew, 10);
                             $('.wpd-thread-info').html(r.data.allCommentsCountBeforeThreadsHtml);
                             $('.wpd-thread-info').attr('data-comments-count', r.data.allCommentsCountNew);
                             $('#wpd-bubble-all-comments-count').replaceWith(r.data.allCommentsCountBubbleHtml);
@@ -2233,14 +2678,14 @@ jQuery(document).ready(function ($) {
     function fixInlineFormsPosition(form) {
         if (form) {
             if (form.offset().left <= 10) {
-                form.css('left', Math.ceil(parseInt(form.css('left')) - form.offset().left + 10));
+                form.css('left', Math.ceil(parseInt(form.css('left'), 10) - form.offset().left + 10));
                 var beforeLeft = Math.ceil(form.siblings('.wpd-inline-icon.wpd-open').offset().left - form.offset().left + 2);
                 if (beforeLeft < 3) {
                     beforeLeft = 3;
                 }
                 document.styleSheets[0].addRule('#' + form.parents('.wpd-inline-shortcode').attr('id') + ' .wpd-inline-form-wrapper::before', 'left: ' + beforeLeft + 'px;');
             } else if (form.offset().left + form.width() > document.body.clientWidth - 10) {
-                form.css('left', Math.ceil(parseInt(form.css('left')) + (document.body.clientWidth - (form.offset().left + form.width())) - 10));
+                form.css('left', Math.ceil(parseInt(form.css('left'), 10) + (document.body.clientWidth - (form.offset().left + form.width())) - 10));
                 var beforeLeft = Math.ceil(form.siblings('.wpd-inline-icon.wpd-open').offset().left - form.offset().left + 2);
                 if (beforeLeft > form.width() - 3) {
                     beforeLeft = form.width() - 3;
@@ -2250,14 +2695,14 @@ jQuery(document).ready(function ($) {
         } else {
             $.each($('.wpd-inline-form-wrapper:visible'), function () {
                 if ($(this).offset().left <= 10) {
-                    $(this).css('left', Math.ceil(parseInt($(this).css('left')) - $(this).offset().left + 10));
+                    $(this).css('left', Math.ceil(parseInt($(this).css('left'), 10) - $(this).offset().left + 10));
                     var beforeLeft = Math.ceil($(this).siblings('.wpd-inline-icon.wpd-open').offset().left - $(this).offset().left + 2);
                     if (beforeLeft < 3) {
                         beforeLeft = 3;
                     }
                     document.styleSheets[0].addRule('#' + $(this).parents('.wpd-inline-shortcode').attr('id') + ' .wpd-inline-form-wrapper::before', 'left: ' + beforeLeft + 'px;');
                 } else if ($(this).offset().left + $(this).width() > document.body.clientWidth - 10) {
-                    $(this).css('left', Math.ceil(parseInt($(this).css('left')) + (document.body.clientWidth - ($(this).offset().left + $(this).width())) - 10));
+                    $(this).css('left', Math.ceil(parseInt($(this).css('left'), 10) + (document.body.clientWidth - ($(this).offset().left + $(this).width())) - 10));
                     var beforeLeft = Math.ceil($(this).siblings('.wpd-inline-icon.wpd-open').offset().left - $(this).offset().left + 2);
                     if (beforeLeft > $(this).width() - 3) {
                         beforeLeft = $(this).width() - 3;
@@ -2271,7 +2716,7 @@ jQuery(document).ready(function ($) {
 //========================= /INLINE COMMENTS =====================//
 //========================= POST RATING =====================//
     $('body').on('click', '#wpd-post-rating.wpd-not-rated .wpd-rate-starts svg', function () {
-        if (parseInt(isRateEditable) && !confirm(wpdiscuzAjaxObj.wc_confirm_rate_edit)) {
+        if (parseInt(isRateEditable, 10) && !confirm(wpdiscuzAjaxObj.wc_confirm_rate_edit)) {
             return false;
         }
         var data = new FormData();
@@ -2376,14 +2821,14 @@ jQuery(document).ready(function ($) {
         var commentTextMaxLength = 0;
         var textareaWrap;
         if (elem.parents('.wpd_main_comm_form').length) {
-            commentTextMaxLength = parseInt(wpdiscuzAjaxObj.commentTextMaxLength);
+            commentTextMaxLength = parseInt(wpdiscuzAjaxObj.commentTextMaxLength, 10);
             textareaWrap = elem.parents('.wpd_main_comm_form');
         } else if (elem.parents('.wpd-secondary-form-wrapper').length) {
-            commentTextMaxLength = parseInt(wpdiscuzAjaxObj.replyTextMaxLength);
+            commentTextMaxLength = parseInt(wpdiscuzAjaxObj.replyTextMaxLength, 10);
             textareaWrap = elem.parents('.wpd-secondary-form-wrapper');
         } else if (elem.parents('#wpdiscuz-edit-form').length) {
             var uniquid = getUniqueID(elem);
-            commentTextMaxLength = parseInt(uniquid.substring(uniquid.lastIndexOf('_') + 1)) ? parseInt(wpdiscuzAjaxObj.replyTextMaxLength) : parseInt(wpdiscuzAjaxObj.commentTextMaxLength);
+            commentTextMaxLength = parseInt(uniquid.substring(uniquid.lastIndexOf('_') + 1), 10) ? parseInt(wpdiscuzAjaxObj.replyTextMaxLength, 10) : parseInt(wpdiscuzAjaxObj.commentTextMaxLength);
             textareaWrap = elem.parents('#wpdiscuz-edit-form');
         }
         if (commentTextMaxLength && textareaWrap) {
@@ -2398,10 +2843,6 @@ jQuery(document).ready(function ($) {
             }
         }
     }
-
-    wpdiscuzAjaxObj.resetActiveFilters = function (currentItemSelector) {
-        $('.wpd-filter.wpdf-active' + (currentItemSelector ? ':not(' + currentItemSelector + ')' : '')).removeClass('wpdf-active');
-    };
 
     function runCallbacks(r, commentID, voteType, wcForm) {
         if (r.data.callbackFunctions) {
@@ -2447,10 +2888,7 @@ jQuery(document).ready(function ($) {
                 data.append(wpdiscuzAjaxObj.nonceName, wpdiscuzNonce);
             } else {
                 var deferred = $.Deferred();
-                var nonceData = new FormData();
-                nonceData.append('action', 'wpdGetNonce');
-                getAjaxObj(isNative, false, nonceData).always(function (response) {
-                    wpdiscuzNonce = response.data[wpdiscuzAjaxObj.nonceName];
+                ensureNonce(isNative).always(function () {
                     if (wpdiscuzNonce) {
                         data.append(wpdiscuzAjaxObj.nonceName, wpdiscuzNonce);
                     }

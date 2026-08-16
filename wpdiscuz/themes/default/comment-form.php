@@ -24,6 +24,9 @@ if (!post_password_required($post->ID) && $load) {
     ?>
     <div class="wpdiscuz_top_clearing"></div>
     <?php
+    /**
+     * @var $form \wpdFormAttr\Form
+     */
     $form = $wpdiscuz->wpdiscuzForm->getForm($post->ID);
 
     $wpCommClasses[] = "wpd-layout-" . $form->getLayout();
@@ -85,7 +88,7 @@ if (!post_password_required($post->ID) && $load) {
                                     $logout   = wp_loginout(get_permalink(), false);
                                     $logout   = preg_replace("!>([^<]+)!is", ">" . esc_html($wpdiscuz->options->getPhrase("wc_log_out")), $logout);
                                     if ($user_url) {
-                                        $logout_text = esc_html($wpdiscuz->options->getPhrase("wc_logged_in_as")) . " <a href='" . esc_url_raw($user_url) . "'>" . esc_html($wpdiscuz->helper->getCurrentUserDisplayName($currentUser)) . "</a> | " . $logout;
+                                        $logout_text = esc_html($wpdiscuz->options->getPhrase("wc_logged_in_as")) . " <a href='" . esc_url($user_url) . "'>" . esc_html($wpdiscuz->helper->getCurrentUserDisplayName($currentUser)) . "</a> | " . $logout;
                                     } else {
                                         $logout_text = esc_html($wpdiscuz->options->getPhrase("wc_logged_in_as")) . " " . esc_html($wpdiscuz->helper->getCurrentUserDisplayName($currentUser)) . " | " . $logout;
                                     }
@@ -94,7 +97,7 @@ if (!post_password_required($post->ID) && $load) {
                             } else if ($wpdiscuz->options->login["showLoginLinkForGuests"]) {
                                 if ($wpdiscuz->options->login["loginUrl"]) {
                                     $login = str_replace("[REDIRECT_URL]", get_permalink(), $wpdiscuz->options->login["loginUrl"]);
-                                    $login = "<a href='" . esc_url_raw($login) . "'><i class='fas fa-sign-in-alt'></i> " . esc_html($wpdiscuz->options->getPhrase("wc_log_in")) . "</a>";
+                                    $login = "<a href='" . esc_url($login) . "'><i class='fas fa-sign-in-alt'></i> " . esc_html($wpdiscuz->options->getPhrase("wc_log_in")) . "</a>";
                                 } else {
                                     $login = preg_replace("!>([^<]+)!is", "><i class='fas fa-sign-in-alt'></i> " . esc_html($wpdiscuz->options->getPhrase("wc_log_in")), wp_loginout(get_permalink(), false));
                                 }
@@ -124,7 +127,7 @@ if (!post_password_required($post->ID) && $load) {
                         <?php
                         if ($subscriptionType !== WpdiscuzCore::SUBSCRIPTION_POST) {
                             ?>
-                            <form action="<?php echo esc_url_raw(admin_url("admin-ajax.php") . "?action=wpdAddSubscription"); ?>"
+                            <form action="<?php echo esc_url(admin_url("admin-ajax.php") . "?action=wpdAddSubscription"); ?>"
                                   method="post" id="wpdiscuz-subscribe-form">
                                 <div class="wpdiscuz-subscribe-form-intro"><?php esc_html_e($wpdiscuz->options->getPhrase("wc_notify_of")); ?> </div>
                                 <div class="wpdiscuz-subscribe-form-option"
@@ -213,6 +216,7 @@ if (!post_password_required($post->ID) && $load) {
         do_action("wpdiscuz_before_comments", $post, $currentUser, $commentsCount);
         if ($form->isUserCanSeeComments($currentUser, $post->ID)) {
             $wooExists = class_exists("WooCommerce") && get_post_type($post->ID) === "product";
+            do_action("wpdiscuz_comments_wrapper_before", $post, $currentUser, $commentsCount);
             ?>
             <div id="wpd-threads" class="wpd-thread-wrapper">
                 <div class="wpd-thread-head">
@@ -244,14 +248,14 @@ if (!post_password_required($post->ID) && $load) {
                         }
                         if ($wpdiscuz->options->thread_display["showReactedFilterButton"]) {
                             ?>
-                            <div class="wpd-filter wpdf-reacted wpd_not_clicked <?php echo esc_attr($filtersVisibilityClass); ?>"
+                            <div class="wpd-filter wpdf-reacted wpd_not_clicked <?php echo esc_attr($filtersVisibilityClass); ?>" data-filter-type="most_reacted"
                                  wpd-tooltip="<?php echo esc_attr($wpdiscuz->options->getPhrase("wc_most_reacted_comment")); ?>">
                                 <i class="fas fa-bolt"></i></div>
                             <?php
                         }
                         if ($wpdiscuz->options->thread_display["showHottestFilterButton"]) {
                             ?>
-                            <div class="wpd-filter wpdf-hottest wpd_not_clicked <?php echo esc_attr($filtersVisibilityClass); ?>"
+                            <div class="wpd-filter wpdf-hottest wpd_not_clicked <?php echo esc_attr($filtersVisibilityClass); ?>" data-filter-type="hottest_thread"
                                  wpd-tooltip="<?php echo esc_attr($wpdiscuz->options->getPhrase("wc_hottest_comment_thread")); ?>">
                                 <i class="fas fa-fire"></i></div>
                             <?php
@@ -321,12 +325,7 @@ if (!post_password_required($post->ID) && $load) {
                         }
                         ?>
                     </div>
-                </div>
-                <div class="wpd-comment-info-bar">
-                    <div class="wpd-current-view"><i
-                            class="fas fa-quote-left"></i> <?php esc_html_e($wpdiscuz->options->getPhrase("wc_inline_feedbacks")); ?>
-                    </div>
-                    <div class="wpd-filter-view-all"><?php esc_html_e($wpdiscuz->options->getPhrase("wc_inline_comments_view_all")); ?></div>
+                    <div class="wpd-filter-container wpdiscuz-hidden"></div>
                 </div>
                 <?php do_action("wpdiscuz_before_thread_list", $post, $currentUser, $commentsCount); ?>
                 <div class="wpd-thread-list">
@@ -402,16 +401,17 @@ if (!post_password_required($post->ID) && $load) {
                 </div>
             </div>
             <?php
+            do_action("wpdiscuz_comments_wrapper_after", $post, $currentUser, $commentsCount);
         }
         do_action("wpdiscuz_after_comments", $post, $currentUser, $commentsCount);
-        if ($commentsCount) {
+        if ($commentsCount && $form->isUserCanSeeComments($currentUser, $post->ID)) {
             if ($wpdiscuz->options->general["showPluginPoweredByLink"]) {
                 ?>
                 <div class="by-wpdiscuz">
                     <span id="awpdiscuz"
                           onclick='document.getElementById("bywpdiscuz").style.display = "inline"; document.getElementById("awpdiscuz").style.display = "none";'>
                         <img alt="wpdiscuz"
-                             src="<?php echo esc_url_raw(plugins_url(WPDISCUZ_DIR_NAME . "/assets/img/plugin-icon/icon_info.png")); ?>"
+                             src="<?php echo esc_url(plugins_url(WPDISCUZ_DIR_NAME . "/assets/img/plugin-icon/icon_info.png")); ?>"
                              align="absmiddle" class="wpdimg"/>
                     </span>&nbsp;
                     <a href="https://wpdiscuz.com/" target="_blank" rel='noreferrer' id="bywpdiscuz"

@@ -1,14 +1,14 @@
-<?php
+﻿<?php
 if (!defined("ABSPATH")) {
     exit();
 }
 $title = get_the_title($item->comment_post_ID);
 
-$canDeleteComment = (boolean)apply_filters("wpdiscuz_can_delete_comment", true, $item->comment_ID);
+$canDeleteComment = (bool)apply_filters("wpdiscuz_can_delete_comment", true, $item->comment_ID);
 $commentLeftStyle = $canDeleteComment ? "" : "width:99%;border-right:none;";
 ?>
 <div class="wpd-item">
-    <div class="wpd-item-left" style="<?php echo $commentLeftStyle; ?>">
+    <div class="wpd-item-left" style="<?php echo esc_attr($commentLeftStyle); ?>">
         <div class="wpd-item-link wpd-comment-meta">
             <i class="fas fa-user"></i>
             <?php echo esc_html($item->comment_author); ?> &nbsp;
@@ -16,13 +16,13 @@ $commentLeftStyle = $canDeleteComment ? "" : "width:99%;border-right:none;";
             <?php echo esc_html($this->getCommentDate($item)); ?>
         </div>
         <div class="wpd-item-link wpd-comment-item-link">
-            <a class="wpd-comment-link" href="<?php echo esc_url_raw(get_comment_link($item)); ?>" target="_blank">
-                <?php echo get_comment_excerpt($item->comment_ID); ?>
+            <a class="wpd-comment-link" href="<?php echo esc_url(get_comment_link($item)); ?>" target="_blank">
+                <?php echo wp_kses_post(get_comment_excerpt($item->comment_ID)); ?>
             </a>
         </div>
         <div class="wpd-item-link wpd-post-item-link">
             <span><?php echo esc_html($this->options->getPhrase("wc_user_settings_response_to")); ?></span>
-            <a class="wpd-post-link" href="<?php echo esc_url_raw(get_permalink($item->comment_post_ID)); ?>"
+            <a class="wpd-post-link" href="<?php echo esc_url(get_permalink($item->comment_post_ID)); ?>"
                target="_blank" title="<?php echo esc_attr($title); ?>">
                 <?php echo esc_html($title); ?>
             </a>

@@ -26,8 +26,8 @@ class WpdiscuzAddons implements WpDiscuzConstants {
 
             add_action("wpdiscuz_submenu_page", [$this, "addonsMenu"]);
             add_action("wpdiscuz_addons_check", [$this, "addonsCheck"]);
-            add_action("wp_ajax_dismiss_wpdiscuz_addon_note", [&$this, "dismissAddonNote"]);
-            add_action("admin_notices", [&$this, "adminNotices"]);
+            add_action("wp_ajax_dismiss_wpdiscuz_addon_note", [$this, "dismissAddonNote"]);
+            add_action("admin_notices", [$this, "adminNotices"]);
         }
     }
 
@@ -358,7 +358,7 @@ class WpdiscuzAddons implements WpDiscuzConstants {
                         <div style="clear:both;"></div>
                     </div>
                     <p>&nbsp;&nbsp;&nbsp;<a
-                            href="<?php echo esc_url_raw(admin_url("admin.php?page=" . self::PAGE_ADDONS)); ?>"><?php esc_html_e("Go to wpDiscuz Addons subMenu"); ?>
+                            href="<?php echo esc_url(admin_url("admin.php?page=" . self::PAGE_ADDONS)); ?>"><?php esc_html_e("Go to wpDiscuz Addons subMenu"); ?>
                             &raquo;</a></p>
                     <?php wp_nonce_field("dismiss-wpdiscuz-addon-note"); ?>
                 </div>
@@ -461,24 +461,10 @@ class WpdiscuzAddons implements WpDiscuzConstants {
         return $hash;
     }
 
-    public function tipDisplayed() {
-        $tipTtile = substr(strip_tags($_GET["tip"]), 0, 100);
-        $lastHash = get_option("wpdiscuz-tip-note-dismissed");
-        if ($lastHash) {
-            $lastHashArray = explode(",", $lastHash);
-        } else {
-            $lastHashArray = [];
-        }
-        $lastHashArray[] = $tipTtile;
-        $hash            = implode(",", $lastHashArray);
-
-        return $hash;
-    }
-
     /* Check addons licenses */
 
     public function addonsCheck() {
-        $this->check();
+        // $this->check();
     }
 
     private function check() {
@@ -541,7 +527,7 @@ class WpdiscuzAddons implements WpDiscuzConstants {
             $plugins["wpdiscuz-advanced-likers"] = [
                 "file"     => "wpdiscuz-advanced-likers/class.WpdiscuzVoters.php",
                 "instance" => $instance,
-                "name"     => "wpDiscuz - Advanced Liking",
+                "name"     => "wpDiscuz - Advanced Likers",
             ];
         }
         if (is_plugin_active("wpdiscuz-comment-author-info/wpdiscuz-comment-author-info.php")) {

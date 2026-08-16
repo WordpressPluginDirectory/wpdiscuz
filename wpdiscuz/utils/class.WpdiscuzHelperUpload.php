@@ -35,39 +35,39 @@ class WpdiscuzHelperUpload implements WpDiscuzConstants {
         $this->wpdiscuzForm = $wpdiscuzForm;
         $this->helper       = $helper;
 
-        $this->requestUri = isset($_SERVER["REQUEST_URI"]) ? $_SERVER["REQUEST_URI"] : "";
+        $this->requestUri = isset($_SERVER["REQUEST_URI"]) ? sanitize_text_field(wp_unslash($_SERVER["REQUEST_URI"])) : "";
         if ($this->options->content["wmuIsEnabled"]) {
             add_action("wpdiscuz_init", [$this, "initUploadsFolderVars"]);
 
-            add_filter("wpdiscuz_editor_buttons_html", [&$this, "uploadButtons"], 1, 2);
-            add_action("wpdiscuz_button_actions", [&$this, "uploadPreview"], 1, 2);
+            add_filter("wpdiscuz_editor_buttons_html", [$this, "uploadButtons"], 1, 2);
+            add_action("wpdiscuz_button_actions", [$this, "uploadPreview"], 1, 2);
 
-            add_filter("wpdiscuz_comment_list_args", [&$this, "commentListArgs"]);
-            add_filter("comment_text", [&$this, "commentText"], 100, 3);
-            add_filter("wpdiscuz_after_read_more", [&$this, "afterReadMore"], 100, 3);
+            add_filter("wpdiscuz_comment_list_args", [$this, "commentListArgs"]);
+            add_filter("comment_text", [$this, "commentText"], 100, 3);
+            add_filter("wpdiscuz_after_read_more", [$this, "afterReadMore"], 100, 3);
 
-//            add_action("comment_post", [&$this, "addAttachments"]);
-            add_filter("wpdiscuz_comment_post", [&$this, "postComment"], 10);
-            add_filter("wpdiscuz_ajax_callbacks", [&$this, "wmuImageCallbacks"], 10);
+//            add_action("comment_post", [$this, "addAttachments"]);
+            add_filter("wpdiscuz_comment_post", [$this, "postComment"], 10);
+            add_filter("wpdiscuz_ajax_callbacks", [$this, "wmuImageCallbacks"], 10);
 
             add_action("wpdiscuz_before_wp_new_comment", [$this, "checkFiles"]);
-            add_action("wpdiscuz_add_comment_before_wp_list_comments", [&$this, "uploadFiles"], 10, 2);
+            add_action("wpdiscuz_add_comment_before_wp_list_comments", [$this, "uploadFiles"], 10, 2);
 
-            add_action("wp_ajax_wmuDeleteAttachment", [&$this, "deleteAttachment"]);
-            add_action("wp_ajax_nopriv_wmuDeleteAttachment", [&$this, "deleteAttachment"]);
+            add_action("wp_ajax_wmuDeleteAttachment", [$this, "deleteAttachment"]);
+            add_action("wp_ajax_nopriv_wmuDeleteAttachment", [$this, "deleteAttachment"]);
 
-            add_action("delete_comment", [&$this, "deleteLinkedAttachments"], 20);
-            add_action("delete_attachment", [&$this, "deleteAttachmentIdFromMeta"], 20);
+            add_action("delete_comment", [$this, "deleteLinkedAttachments"], 20);
+            add_action("delete_attachment", [$this, "deleteAttachmentIdFromMeta"], 20);
 
-            add_filter("wpdiscuz_privacy_personal_data_export", [&$this, "exportPersonalData"], 10, 2);
+            add_filter("wpdiscuz_privacy_personal_data_export", [$this, "exportPersonalData"], 10, 2);
             add_filter("wpdiscuz_do_export_personal_data", "__return_true");
 
             /* CRON JOBS */
-            add_action("wpdiscuz_init", [&$this, "registerJobThumbnailsViaCron"]);
-            add_action("wpdiscuz_init", [&$this, "deregisterJobThumbnailsViaCron"]);
-            add_action(self::DELETE_UNATTACHED_FILES_ACTION, [&$this, "deleteUnattachedFiles"]);
-            add_action(self::GENERATE_THUMBNAILS_ACTION, [&$this, "generateThumbnails"]);
-            add_filter("cron_schedules", [&$this, "setIntervalThumbnailsViaCron"]);
+            add_action("wpdiscuz_init", [$this, "registerJobThumbnailsViaCron"]);
+            add_action("wpdiscuz_init", [$this, "deregisterJobThumbnailsViaCron"]);
+            add_action(self::DELETE_UNATTACHED_FILES_ACTION, [$this, "deleteUnattachedFiles"]);
+            add_action(self::GENERATE_THUMBNAILS_ACTION, [$this, "generateThumbnails"]);
+            add_filter("cron_schedules", [$this, "setIntervalThumbnailsViaCron"]);
             /* /CRON JOBS */
 
             add_action("restrict_manage_posts", [$this, "wpdiscuzMediaFiler"]);
@@ -110,7 +110,7 @@ class WpdiscuzHelperUpload implements WpDiscuzConstants {
             $html = "<div class='wmu-action-wrap'>";
             $html .= "<div class='wmu-tabs wmu-" . self::KEY_IMAGES . "-tab wmu-hide'></div>";
             $html .= "<div class='wmu-tabs wmu-" . self::KEY_VIDEOS . "-tab wmu-hide'></div>";
-            $html .= "<div class='wmu-tabs wmu-" . self::KEY_FILES  . "-tab wmu-hide'></div>";
+            $html .= "<div class='wmu-tabs wmu-" . self::KEY_FILES . "-tab wmu-hide'></div>";
             $html .= apply_filters("wpdiscuz_mu_tabs", "");
             $html .= "</div>";
             echo $html;
@@ -482,28 +482,39 @@ class WpdiscuzHelperUpload implements WpDiscuzConstants {
     public function deleteAttachment() {
         $this->helper->validateNonce();
         $response     = ["errorCode" => "", "error" => ""];
-        $attachmentId = isset($_POST["attachmentId"]) ? trim($_POST["attachmentId"]) : 0;
+        $attachmentId = isset($_POST["attachmentId"]) ? trim(sanitize_text_field(wp_unslash($_POST["attachmentId"]))) : 0;
         $attachmentId = self::decrypt($attachmentId);
         $attachment   = get_post($attachmentId);
-        $commentId    = get_post_meta($attachmentId, self::METAKEY_ATTCHMENT_COMMENT_ID, true);
-        $comment      = get_comment($commentId);
-        $post         = get_post($comment->comment_post_ID);
+
+        if (empty($attachment->ID) || $attachment->post_type !== "attachment") {
+            $response["error"] = esc_html__("The attachment does not exist!", "wpdiscuz");
+            wp_send_json_error($response);
+        }
+
+        $commentId = get_post_meta($attachmentId, self::METAKEY_ATTCHMENT_COMMENT_ID, true);
+        $comment   = get_comment($commentId);
+
+        if (empty($comment->comment_ID)) {
+            $response["error"] = esc_html__("Attachment's parent comment does not exist!", "wpdiscuz");
+            wp_send_json_error($response);
+        }
+
+        $post = get_post($comment->comment_post_ID);
         WpdiscuzHelper::validatePostAccess($post);
-        if ($attachment && $comment) {
-            if (empty($this->currentUser->ID)) {
-                $this->setCurrentUser(WpdiscuzHelper::getCurrentUser());
-            }
-            $args = [];
-            if (isset($this->currentUser->user_email)) {
-                $args["comment_author_email"] = $this->currentUser->user_email;
-            }
-            if (current_user_can("moderate_comments") || ($this->helper->isCommentEditable($comment) && $this->helper->canUserEditComment($comment, $this->currentUser, $args))) {
-                wp_delete_attachment($attachmentId, true);
-                do_action("wpdiscuz_reset_comments_extra_cache", $comment->comment_post_ID);
-                wp_send_json_success($response);
-            }
+
+        if (empty($this->currentUser->ID)) {
+            $this->setCurrentUser(WpdiscuzHelper::getCurrentUser());
+        }
+        $args = [];
+        if (isset($this->currentUser->user_email)) {
+            $args["comment_author_email"] = $this->currentUser->user_email;
+        }
+        if (current_user_can("moderate_comments") || ($this->helper->isCommentEditable($comment) && $this->helper->canUserEditComment($comment, $this->currentUser, $args))) {
+            wp_delete_attachment($attachmentId, true);
+            do_action("wpdiscuz_reset_comments_extra_cache", $comment->comment_post_ID);
+            wp_send_json_success($response);
         } else {
-            $response["error"] = esc_html__("The attachment does not exist", "wpdiscuz");
+            $response["error"] = esc_html__("You don't have sufficient permission for this action!", "wpdiscuz");
             wp_send_json_error($response);
         }
     }
@@ -876,7 +887,7 @@ class WpdiscuzHelperUpload implements WpDiscuzConstants {
     public function setIntervalThumbnailsViaCron($schedules) {
         $schedules[self::GENERATE_THUMBNAILS_KEY_RECURRENCE] = [
             "interval" => self::GENERATE_THUMBNAILS_RECURRENCE * HOUR_IN_SECONDS,
-            "display"  => esc_html__("Every 3 hours", "wpdiscuz")
+            "display"  => "Every 3 hours"
         ];
 
         return $schedules;
@@ -888,10 +899,9 @@ class WpdiscuzHelperUpload implements WpDiscuzConstants {
             return;
         }
 
-        set_time_limit(-1);
         $attachments = get_posts([
             "post_type"      => "attachment",
-            "posts_per_page" => apply_filters("wpdiscuz_generate_thumbnails_limit", -1),
+            "posts_per_page" => apply_filters("wpdiscuz_generate_thumbnails_limit", 5),
             "fields"         => "ids",
             "meta_query"     => [
                 "relation" => "AND",
@@ -929,7 +939,7 @@ class WpdiscuzHelperUpload implements WpDiscuzConstants {
 
     private function generateAttachmentMetadata($attachId, $fileName) {
         $this->includeImageFunctions();
-        add_filter("intermediate_image_sizes", [&$this, "getThumbnailSizes"]);
+        add_filter("intermediate_image_sizes", [$this, "getThumbnailSizes"]);
         $attachData = wp_generate_attachment_metadata($attachId, $fileName);
         wp_update_attachment_metadata($attachId, $attachData);
         return $attachData;
@@ -966,7 +976,17 @@ class WpdiscuzHelperUpload implements WpDiscuzConstants {
         $dropdown .= "<option value=''>" . esc_html__("All Media Items", "wpdiscuz") . "</option>";
         $dropdown .= "<option value='wpdiscuz' {$selected}>" . esc_html__("wpDiscuz Media Items", "wpdiscuz") . "</option>";
         $dropdown .= "</select>";
-        echo $dropdown;
+        echo wp_kses($dropdown, [
+            "select" => [
+                "name"  => true,
+                "id"    => true,
+                "class" => true,
+            ],
+            "option" => [
+                "value"    => true,
+                "selected" => true,
+            ],
+        ]);
     }
 
     function getWpdiscuzMedia($query) {

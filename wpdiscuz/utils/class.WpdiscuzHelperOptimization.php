@@ -22,25 +22,25 @@ class WpdiscuzHelperOptimization implements WpDiscuzConstants {
         $this->dbManager   = $dbManager;
         $this->helperEmail = $helperEmail;
         $this->helper      = $helper;
-        add_action("deleted_comment", [&$this, "cleanCommentRelatedRows"], 10, 2);
-        add_action("delete_user", [&$this, "deleteUserRelatedData"], 11);
-        add_action("profile_update", [&$this, "onProfileUpdate"], 10, 2);
-        add_action("admin_post_removeVoteData", [&$this, "removeVoteData"]);
-        add_action("admin_post_removeSocialAvatars", [&$this, "removeSocialAvatars"]);
-        add_action("admin_post_resetPhrases", [&$this, "resetPhrases"]);
-        add_action("transition_comment_status", [&$this, "statusEventHandler"], 10, 3);
-        add_action("edit_comment", [&$this, "commentEdited"], 10, 2);
-        add_action("post_updated", [&$this, "actionsOnUpdatedPost"]);
-        add_action("deleted_post", [&$this, "actionsOnDeletedPost"]);
-        add_action("updated_option", [&$this, "optionUpdated"]);
-        add_action("bp_members_avatar_uploaded", [&$this, "bpAvatarUploaded"]);
-        add_action("wpforo_update_profile_after", [&$this, "wpfProfileUpdate"]);
-        add_action("deactivate_plugin", [&$this, "pluginDeactivated"]);
-        add_action("wpdiscuz_clean_post_cache", [&$this, "cleanPostCache"]);
-        add_action("wpdiscuz_clean_all_caches", [&$this, "cleanAllCaches"]);
+        add_action("deleted_comment", [$this, "cleanCommentRelatedRows"], 10, 2);
+        add_action("delete_user", [$this, "deleteUserRelatedData"], 11);
+        add_action("profile_update", [$this, "onProfileUpdate"], 10, 2);
+        add_action("admin_post_removeVoteData", [$this, "removeVoteData"]);
+        add_action("admin_post_removeSocialAvatars", [$this, "removeSocialAvatars"]);
+        add_action("admin_post_resetPhrases", [$this, "resetPhrases"]);
+        add_action("transition_comment_status", [$this, "statusEventHandler"], 10, 3);
+        add_action("edit_comment", [$this, "commentEdited"], 10, 2);
+        add_action("post_updated", [$this, "actionsOnUpdatedPost"]);
+        add_action("deleted_post", [$this, "actionsOnDeletedPost"]);
+        add_action("updated_option", [$this, "optionUpdated"]);
+        add_action("bp_members_avatar_uploaded", [$this, "bpAvatarUploaded"]);
+        add_action("wpforo_update_profile_after", [$this, "wpfProfileUpdate"]);
+        add_action("deactivate_plugin", [$this, "pluginDeactivated"]);
+        add_action("wpdiscuz_clean_post_cache", [$this, "cleanPostCache"]);
+        add_action("wpdiscuz_clean_all_caches", [$this, "cleanAllCaches"]);
         if ($this->isApplicableToRequest()) {
-            add_filter('comments_pre_query', [&$this, "addCustomVariables"], PHP_INT_MAX, 2);
-            add_filter('the_comments', [&$this, "deleteCustomVariable"], PHP_INT_MIN, 2);
+            add_filter('comments_pre_query', [$this, "addCustomVariables"], PHP_INT_MAX, 2);
+            add_filter('the_comments', [$this, "deleteCustomVariable"], PHP_INT_MIN, 2);
         }
     }
 
@@ -211,24 +211,30 @@ class WpdiscuzHelperOptimization implements WpDiscuzConstants {
     }
 
     public function removeVoteData() {
-        if (isset($_GET["_wpnonce"]) && wp_verify_nonce($_GET["_wpnonce"], "removeVoteData") && current_user_can("manage_options")) {
+        $nonce = isset($_GET["_wpnonce"]) ? sanitize_text_field(wp_unslash($_GET["_wpnonce"])) : "";
+        if ($nonce && wp_verify_nonce($nonce, "removeVoteData") && current_user_can("manage_options")) {
             $this->dbManager->removeVotes();
             do_action("wpdiscuz_remove_vote_data");
-            wp_redirect(admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&wpd_tab=" . self::TAB_GENERAL));
+            wp_safe_redirect(esc_url_raw(admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&wpd_tab=" . self::TAB_GENERAL)));
+            exit();
         }
     }
 
     public function removeSocialAvatars() {
-        if (isset($_GET["_wpnonce"]) && wp_verify_nonce($_GET["_wpnonce"], "removeSocialAvatars") && current_user_can("manage_options")) {
+        $nonce = isset($_GET["_wpnonce"]) ? sanitize_text_field(wp_unslash($_GET["_wpnonce"])) : "";
+        if ($nonce && wp_verify_nonce($nonce, "removeSocialAvatars") && current_user_can("manage_options")) {
             $this->dbManager->removeSocialAvatars();
-            wp_redirect(admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&wpd_tab=" . self::TAB_GENERAL));
+            wp_safe_redirect(esc_url_raw(admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&wpd_tab=" . self::TAB_GENERAL)));
+            exit();
         }
     }
 
     public function resetPhrases() {
-        if (isset($_GET["_wpnonce"]) && wp_verify_nonce($_GET["_wpnonce"], "reset_phrases_nonce") && current_user_can("manage_options")) {
+        $nonce = isset($_GET["_wpnonce"]) ? sanitize_text_field(wp_unslash($_GET["_wpnonce"])) : "";
+        if ($nonce && wp_verify_nonce($nonce, "reset_phrases_nonce") && current_user_can("manage_options")) {
             $this->dbManager->deletePhrases();
-            wp_redirect(admin_url("admin.php?page=" . self::PAGE_PHRASES));
+            wp_safe_redirect(esc_url_raw(admin_url("admin.php?page=" . self::PAGE_PHRASES)));
+            exit();
         }
     }
 
@@ -342,7 +348,8 @@ class WpdiscuzHelperOptimization implements WpDiscuzConstants {
         if (!wp_doing_ajax()) {
             return false;
         }
-        if (!isset($_REQUEST["action"]) || sanitize_text_field($_REQUEST["action"]) !== "wpdLoadMoreComments") {
+        $action = isset($_REQUEST["action"]) ? sanitize_text_field(wp_unslash($_REQUEST["action"])) : "";
+        if ($action !== "wpdLoadMoreComments") {
             return false;
         }
 

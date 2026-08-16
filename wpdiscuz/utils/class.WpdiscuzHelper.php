@@ -14,6 +14,10 @@ class WpdiscuzHelper implements WpDiscuzConstants {
      * @var $dbManager WpdiscuzDBManager
      */
     private $dbManager;
+
+    /**
+     * @var wpDiscuzForm
+     */
     private $wpdiscuzForm;
     private static $current_time;
     private $avatars;
@@ -23,47 +27,46 @@ class WpdiscuzHelper implements WpDiscuzConstants {
         $this->dbManager    = $dbManager;
         $this->wpdiscuzForm = $wpdiscuzForm;
         self::$current_time = current_time("timestamp");
-        add_filter("the_champ_login_interface_filter", [&$this, "wpDiscuzSuperSocializerLogin"], 15, 2);
-        add_filter("pre_comment_user_ip", [&$this, "fixLocalhostIp"], 10);
+        add_filter("the_champ_login_interface_filter", [$this, "wpDiscuzSuperSocializerLogin"], 15, 2);
+        add_filter("pre_comment_user_ip", [$this, "fixLocalhostIp"], 10);
         add_filter("get_avatar_url", [$this, "preGetDefaultAvatarUrl"], 99, 3);
 
         if ($this->options->subscription["enableUserMentioning"]) {
-            add_filter("comment_text", [&$this, "userMentioning"], 10, 3);
+            add_filter("comment_text", [$this, "userMentioning"], 10, 3);
         }
         if ($this->options->content["enableShortcodes"]) {
-            add_filter("comment_text", [&$this, "doShortcode"], 10, 3);
+            add_filter("comment_text", [$this, "doShortcode"], 10, 3);
         }
-        add_filter("comment_text", [&$this, "multipleBlockquotesToOne"], 100);
-        add_filter("wp_update_comment_data", [&$this, "commentDataArr"], 10, 3);
-        add_action("post_updated", [&$this, "checkFeedbackShortcodes"], 10, 3);
-        add_action("update_postmeta", [&$this, "checkMetaFeedbackShortcodes"], 10, 4);
-        add_action("added_post_meta", [&$this, "checkMetaFeedbackShortcodes"], 10, 4);
-        add_filter("comment_row_actions", [&$this, "commentRowStickAction"], 10, 2);
-        add_filter("admin_comment_types_dropdown", [&$this, "addCommentTypes"]);
-        add_filter("wpdiscuz_after_comment_author", [&$this, "userNicename"], 1, 3);
+        add_filter("comment_text", [$this, "multipleBlockquotesToOne"], 100);
+        add_filter("wp_update_comment_data", [$this, "commentDataArr"], 10, 3);
+        add_action("post_updated", [$this, "checkFeedbackShortcodes"], 10, 3);
+        add_action("update_postmeta", [$this, "checkMetaFeedbackShortcodes"], 10, 4);
+        add_action("added_post_meta", [$this, "checkMetaFeedbackShortcodes"], 10, 4);
+        add_filter("comment_row_actions", [$this, "commentRowStickAction"], 10, 2);
+        add_filter("admin_comment_types_dropdown", [$this, "addCommentTypes"]);
+        add_filter("wpdiscuz_after_comment_author", [$this, "userNicename"], 1, 3);
 
-        add_action("wp_ajax_wpdGetInfo", [&$this, "wpdGetInfo"]);
-        add_action("wp_ajax_nopriv_wpdGetInfo", [&$this, "wpdGetInfo"]);
+        add_action("wp_ajax_wpdGetInfo", [$this, "wpdGetInfo"]);
+        add_action("wp_ajax_nopriv_wpdGetInfo", [$this, "wpdGetInfo"]);
         if ($this->options->login["showActivityTab"]) {
-            add_action("wp_ajax_wpdGetActivityPage", [&$this, "getActivityPage"]);
-            add_action("wp_ajax_nopriv_wpdGetActivityPage", [&$this, "getActivityPage"]);
+            add_action("wp_ajax_wpdGetActivityPage", [$this, "getActivityPage"]);
+            add_action("wp_ajax_nopriv_wpdGetActivityPage", [$this, "getActivityPage"]);
         }
         if ($this->options->login["showSubscriptionsTab"]) {
-            add_action("wp_ajax_wpdGetSubscriptionsPage", [&$this, "getSubscriptionsPage"]);
-            add_action("wp_ajax_nopriv_wpdGetSubscriptionsPage", [&$this, "getSubscriptionsPage"]);
+            add_action("wp_ajax_wpdGetSubscriptionsPage", [$this, "getSubscriptionsPage"]);
+            add_action("wp_ajax_nopriv_wpdGetSubscriptionsPage", [$this, "getSubscriptionsPage"]);
         }
         if ($this->options->login["showFollowsTab"]) {
-            add_action("wp_ajax_wpdGetFollowsPage", [&$this, "getFollowsPage"]);
-            add_action("wp_ajax_nopriv_wpdGetFollowsPage", [&$this, "getFollowsPage"]);
+            add_action("wp_ajax_wpdGetFollowsPage", [$this, "getFollowsPage"]);
+            add_action("wp_ajax_nopriv_wpdGetFollowsPage", [$this, "getFollowsPage"]);
         }
-        add_action("admin_post_disableAddonsDemo", [&$this, "disableAddonsDemo"]);
+        add_action("admin_post_disableAddonsDemo", [$this, "disableAddonsDemo"]);
         $requestUri = !empty($_SERVER["REQUEST_URI"]) ? $_SERVER["REQUEST_URI"] : "";
         if (!get_option(self::OPTION_SLUG_DEACTIVATION) && (strpos($requestUri, "/plugins.php") !== false)) {
-            add_action("admin_footer", [&$this, "wpdDeactivationReasonModal"]);
+            add_action("admin_footer", [$this, "wpdDeactivationReasonModal"]);
         }
         add_filter("wpdiscuz_comment_author", [$this, "umAuthorName"], 10, 2);
-        add_action("add_meta_boxes", [&$this, "addRatingResetButton"], 10, 2);
-        add_action("wpdiscuz_init", [&$this, "setNonceInCookies"]);
+        add_action("add_meta_boxes", [$this, "addRatingResetButton"], 10, 2);
         add_action("save_post", [$this, "updatePostAuthorsTrs"]);
 
     }
@@ -172,51 +175,13 @@ class WpdiscuzHelper implements WpDiscuzConstants {
         return wp_create_nonce($this->generateNonceKey());
     }
 
-    public function validateNonce() {
-        if (is_user_logged_in() || apply_filters('wpdiscuz_validate_nonce_for_guests', true)) {
-            $nonce         = !empty($_POST[self::GLOBAL_NONCE_NAME]) ? sanitize_text_field($_POST[self::GLOBAL_NONCE_NAME])
-                : (!empty($_COOKIE[self::GLOBAL_NONCE_NAME . '_' . COOKIEHASH])
-                    ? sanitize_text_field($_COOKIE[self::GLOBAL_NONCE_NAME . '_' . COOKIEHASH]) : "");
-            $timeDependent = wp_verify_nonce($nonce, $this->generateNonceKey());
-            if (!$timeDependent) {
-                wp_die(__("Nonce is invalid.", "wpdiscuz"));
-            }
-            $this->setNonceInCookies($timeDependent, false);
+    public function validateNonce($nonce = '') {
+        if (empty($nonce)) {
+            $nonce = !empty($_POST[self::GLOBAL_NONCE_NAME]) ? sanitize_text_field($_POST[self::GLOBAL_NONCE_NAME]) : "";
         }
-    }
-
-    public function setNonceInCookies($timeDependent = 2, $checkNonce = true) {
-        if (headers_sent()) {
-            return;
-        }
-
-        $validateNonceForGuests = apply_filters('wpdiscuz_validate_nonce_for_guests', true);
-
-        if (!$validateNonceForGuests && !is_user_logged_in()) {
-            return;
-        }
-
-        if ($checkNonce) {
-            $nonce         = !empty($_COOKIE[self::GLOBAL_NONCE_NAME . '_' . COOKIEHASH]) ? sanitize_text_field($_COOKIE[self::GLOBAL_NONCE_NAME . '_' . COOKIEHASH]) : "";
-            $timeDependent = wp_verify_nonce($nonce, $this->generateNonceKey());
-        }
-
-        if ($timeDependent && $timeDependent < 2) {
-            return;
-        }
-
-        $nonce = $this->generateNonce();
-        if (version_compare(phpversion(), "7.3", ">=")) {
-            setcookie(self::GLOBAL_NONCE_NAME . '_' . COOKIEHASH, $nonce, [
-                'expires'  => 0,
-                'path'     => '/',
-                'domain'   => '',
-                'secure'   => false,
-                'httponly' => false,
-                'samesite' => 'Strict',
-            ]);
-        } else {
-            setcookie(self::GLOBAL_NONCE_NAME . '_' . COOKIEHASH, $nonce, 0, '/', "", false, false);
+        $timeDependent = wp_verify_nonce($nonce, $this->generateNonceKey());
+        if (!$timeDependent) {
+            wp_die(__("Nonce is invalid.", "wpdiscuz"));
         }
     }
 
@@ -317,7 +282,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
             $hook = "";
         }
         $ret = preg_replace_callback("#[^\"|\'](https" . $hook . ":\/\/[^\s]+(\.jpe?g|\.png|\.gif|\.bmp))#i", [
-            &$this,
+            $this,
             "replaceUrlToImg"
         ], $ret);
         // this one is not in an array because we need it to run last, for cleanup of accidental links within links
@@ -337,7 +302,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
             $rel .= " nofollow";
         }
 
-        return apply_filters("wpdiscuz_source_to_image_conversion", "<a rel='$rel' target='_blank' href='" . esc_url_raw($url) . "'><img alt='comment image' src='" . esc_url_raw($url) . "' /></a>", $url);
+        return apply_filters("wpdiscuz_source_to_image_conversion", "<a rel='" . esc_attr($rel) . "' target='_blank' href='" . esc_url($url) . "'><img alt='comment image' src='" . esc_url($url) . "' /></a>", $url);
     }
 
     /**
@@ -397,15 +362,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
      * return client real ip
      */
     public static function getRealIPAddr() {
-        $ip = $_SERVER["REMOTE_ADDR"];
-
-        $ip = apply_filters("pre_comment_user_ip", $ip);
-
-        if ($ip === "::1") {
-            $ip = "127.0.0.1";
-        }
-
-        return $ip;
+        return apply_filters("pre_comment_user_ip", ($_SERVER["REMOTE_ADDR"] ?? ""));
     }
 
     public function getUIDData($uid) {
@@ -450,15 +407,28 @@ class WpdiscuzHelper implements WpDiscuzConstants {
         return apply_filters("is_load_wpdiscuz", $form->getFormID() && (comments_open($post) || $post->comment_count) && is_singular() && post_type_supports($post->post_type, "comments"), $post);
     }
 
+    /**
+     * Returns true if wpDiscuz has a form assigned to the post and the post type supports comments.
+     * Unlike isLoadWpdiscuz(), this works in any context (admin, AJAX, non-singular) and is
+     * intended for use by addons that need to check wpDiscuz support outside of page rendering.
+     */
+    public function isPostSupportedByWpdiscuz($postId) {
+        $post = get_post($postId);
+        if (!$post || !post_type_supports($post->post_type, "comments")) {
+            return false;
+        }
+        return (bool)$this->wpdiscuzForm->getForm($post->ID)->getFormID();
+    }
+
     public function replaceCommentContentCode($content) {
         if (is_ssl()) {
             $content = preg_replace_callback("#<\s*?img[^>]*src*=*[\"\']?([^\"\']*)[^>]+>#is", [
-                &$this,
+                $this,
                 "replaceImageToURL"
             ], $content);
         }
 
-        return preg_replace_callback("#`(.*?)`#is", [&$this, "replaceCodeContent"], stripslashes($content));
+        return preg_replace_callback("#`(.*?)`#is", [$this, "replaceCodeContent"], stripslashes($content));
     }
 
     private function replaceImageToURL($matches) {
@@ -515,7 +485,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
             $wpdiscuzStyleURL = get_stylesheet_directory_uri() . "/wpdiscuz/$fileName.css";
         } elseif (file_exists(get_template_directory() . "/wpdiscuz/$fileName.css")) {
             $wpdiscuzStyleURL = get_template_directory_uri() . "/wpdiscuz/$fileName.css";
-        } else if (file_exists($theme . "/$fileName.css")) {
+        } else if (!empty($themes[$theme]) && file_exists($theme . "/$fileName.css")) {
             $wpdiscuzStyleURL = $themes[$theme]["url"] . "/$fileName.css";
         }
         if ($wpdiscuzStyleURL) {
@@ -610,7 +580,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
             $storedCookieEmail = isset($_COOKIE["comment_author_email_" . COOKIEHASH]) ? sanitize_email($_COOKIE["comment_author_email_" . COOKIEHASH]) : "";
         }
 
-        return ($storedCookieEmail === $comment->comment_author_email && self::getIP() === $comment->comment_author_IP);
+        return ($storedCookieEmail === $comment->comment_author_email && self::getRealIPAddr() === $comment->comment_author_IP);
     }
 
     public function addCommentTypes($args) {
@@ -643,7 +613,8 @@ class WpdiscuzHelper implements WpDiscuzConstants {
     public function disableAddonsDemo() {
         if (current_user_can("manage_options") && isset($_GET["_wpnonce"]) && wp_verify_nonce($_GET["_wpnonce"], "disableAddonsDemo") && isset($_GET["show"])) {
             update_option(self::OPTION_SLUG_SHOW_DEMO, intval($_GET["show"]));
-            wp_redirect(admin_url("admin.php?page=" . WpdiscuzCore::PAGE_SETTINGS));
+            wp_safe_redirect(esc_url_raw(admin_url("admin.php?page=" . WpdiscuzCore::PAGE_SETTINGS)));
+            exit();
         }
     }
 
@@ -708,7 +679,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
             $currentUserEmail = $currentUser->user_email;
         } else {
             $currentUserId    = 0;
-            $currentUserEmail = isset($_COOKIE["comment_author_email_" . COOKIEHASH]) ? sanitize_email($_COOKIE["comment_author_email_" . COOKIEHASH]) : "";
+            $currentUserEmail = isset($_COOKIE["comment_author_email_" . COOKIEHASH]) ? sanitize_email(wp_unslash($_COOKIE["comment_author_email_" . COOKIEHASH])) : "";
         }
 
         if (is_user_logged_in()) {
@@ -845,7 +816,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
     }
 
     private function getSubscriptionsTitleHtml() {
-//        $this->validateNonce();
+        $this->validateNonce();
         ob_start();
         include_once WPDISCUZ_DIR_PATH . "/utils/layouts/subscriptions/title.php";
 
@@ -873,7 +844,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
     }
 
     private function getFollowsTitleHtml() {
-//        $this->validateNonce();
+        $this->validateNonce();
         ob_start();
         include_once WPDISCUZ_DIR_PATH . "/utils/layouts/follows/title.php";
 
@@ -900,10 +871,6 @@ class WpdiscuzHelper implements WpDiscuzConstants {
         wp_die($html);
     }
 
-    public static function getIP() {
-        return $_SERVER["REMOTE_ADDR"] ?? "0.0.0.0";
-    }
-
     public static function isBanned() {
         $mod_keys = trim(get_option('disallowed_keys'));
         if ('' === $mod_keys) {
@@ -912,7 +879,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
 
         $currentUser = wp_get_current_user();
         $email       = '';
-        $ip          = self::getIP();
+        $ip          = self::getRealIPAddr();
         if ($currentUser->exists()) {
             $email = $currentUser->user_email;
         }
@@ -1083,13 +1050,12 @@ class WpdiscuzHelper implements WpDiscuzConstants {
                             'type'    => 'full',
                         ));
                 }
-                xdebug_var_dump($url);
                 if (!$url) {
                     $url = $nameAndEmail["isUser"] ? $this->options->thread_layouts["defaultAvatarUrlForUser"] : $this->options->thread_layouts["defaultAvatarUrlForGuest"];
                 }
 
                 $url2x  = $url;
-                $avatar = sprintf("<img alt='%s' src='%s' srcset='%s' class='%s' height='%d' width='%d' %s/>", esc_attr($args["alt"]), esc_url_raw($url), esc_attr("$url2x 2x"), esc_attr(implode(" ", $class)), esc_attr((int)$args["height"]), esc_attr((int)$args["width"]), $args["extra_attr"]);
+                $avatar = sprintf("<img alt='%s' src='%s' srcset='%s' class='%s' height='%d' width='%d' %s/>", esc_attr($args["alt"]), esc_url($url), esc_attr("$url2x 2x"), esc_attr(implode(" ", $class)), esc_attr((int)$args["height"]), esc_attr((int)$args["width"]), $args["extra_attr"]);
             }
         }
         return $avatar;
@@ -1097,7 +1063,6 @@ class WpdiscuzHelper implements WpDiscuzConstants {
 
     public function preGetDefaultAvatarForUser($avatar, $idOrEmail, $args) {
         if ($this->options->thread_layouts["changeAvatarsEverywhere"] || isset($args["wpdiscuz_gravatar_user_email"])) {
-//            xdebug_var_dump($args['url']);
             $nameAndEmail = $this->getUserNameAndEmail($idOrEmail);
             if ($nameAndEmail["isUser"]) {
                 $valid = true;
@@ -1126,8 +1091,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
                     }
 
                     $url2x  = $url;
-                    $avatar = sprintf("<img alt='%s' src='%s' srcset='%s' class='%s' height='%d' width='%d' %s/>", esc_attr($args["alt"]), esc_url_raw($url), esc_attr("$url2x 2x"), esc_attr(implode(" ", $class)), esc_attr((int)$args["height"]), esc_attr((int)$args["width"]), $args["extra_attr"]);
-//                    xdebug_var_dump($url);
+                    $avatar = sprintf("<img alt='%s' src='%s' srcset='%s' class='%s' height='%d' width='%d' %s/>", esc_attr($args["alt"]), esc_url($url), esc_attr("$url2x 2x"), esc_attr(implode(" ", $class)), esc_attr((int)$args["height"]), esc_attr((int)$args["width"]), $args["extra_attr"]);
                 }
             }
         }
@@ -1529,7 +1493,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
             $user["profileUrl"]        = in_array($user["user"]->ID, $args["posts_authors"]) ? get_author_posts_url($user["user"]->ID) : "";
             $user["profileUrl"]        = $this->getProfileUrl($user["profileUrl"], $user["user"]);
             if ($this->options->social["displayIconOnAvatar"] && ($socialProvider = get_user_meta($user["user"]->ID, self::WPDISCUZ_SOCIAL_PROVIDER_KEY, true))) {
-                $user["commentWrapClass"][] = "wpd-soc-user-" . $socialProvider;
+                $user["commentWrapClass"][] = "wpd-soc-user-" . sanitize_html_class($socialProvider);
                 if ($socialProvider === "facebook") {
                     $user["socIcon"] = "<i><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 512'><path d='M80 299.3V512H196V299.3h86.5l18-97.8H196V166.9c0-51.7 20.3-71.5 72.7-71.5c16.3 0 29.4 .4 37 1.2V7.9C291.4 4 256.4 0 236.2 0C129.3 0 80 50.5 80 159.4v42.1H14v97.8H80z'/></svg></i>";
                 } else if ($socialProvider === "instagram") {
@@ -1581,7 +1545,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
             ];
             $user["avatar"]            = get_avatar($user["gravatarArgs"]["wpdiscuz_gravatar_field"], $user["gravatarArgs"]["wpdiscuz_gravatar_size"], "", $user["authorName"], $user["gravatarArgs"]);
         }
-        $user["authorNameHtml"] = $user["authorName"];
+        $user["authorNameHtml"] = esc_html($user["authorName"]);
         if ($this->options->login["enableProfileURLs"]) {
             if ($user["profileUrl"]) {
                 $attributes = apply_filters("wpdiscuz_avatar_link_attributes", [
@@ -1592,11 +1556,12 @@ class WpdiscuzHelper implements WpDiscuzConstants {
                 if ($attributes && is_array($attributes)) {
                     $attributesHtml = "";
                     foreach ($attributes as $attribute => $value) {
-                        $attributesHtml .= " $attribute='{$value}'";
+                        $escapedValue   = ($attribute === "href") ? esc_url($value) : esc_attr($value);
+                        $attributesHtml .= " " . esc_attr($attribute) . "='{$escapedValue}'";
                     }
                     $user["authorAvatarSprintf"] = "<a" . str_replace("%", "%%", $attributesHtml) . ">%s</a>";
                 } else {
-                    $user["authorAvatarSprintf"] = "<a rel='noreferrer ugc' href='" . str_replace("%", "%%", $user["profileUrl"]) . "' target='_blank'>%s</a>";
+                    $user["authorAvatarSprintf"] = "<a rel='noreferrer ugc' href='" . str_replace("%", "%%", esc_url($user["profileUrl"])) . "' target='_blank'>%s</a>";
                 }
             }
             if ((($href = $user["commentAuthorUrl"]) && $this->options->login["websiteAsProfileUrl"]) || ($href = $user["profileUrl"])) {
@@ -1612,11 +1577,12 @@ class WpdiscuzHelper implements WpDiscuzConstants {
                 if ($attributes && is_array($attributes)) {
                     $attributesHtml = "";
                     foreach ($attributes as $attribute => $value) {
-                        $attributesHtml .= " $attribute='$value'";
+                        $escapedValue   = ($attribute === "href") ? esc_url($value) : esc_attr($value);
+                        $attributesHtml .= " " . esc_attr($attribute) . "='{$escapedValue}'";
                     }
                     $user["authorNameHtml"] = "<a$attributesHtml>{$user["authorNameHtml"]}</a>";
                 } else {
-                    $user["authorNameHtml"] = "<a rel='$rel' href='$href' target='_blank'>{$user["authorNameHtml"]}</a>";
+                    $user["authorNameHtml"] = "<a rel='" . esc_attr($rel) . "' href='" . esc_url($href) . "' target='_blank'>{$user["authorNameHtml"]}</a>";
                 }
             }
         }
@@ -1703,6 +1669,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
         return !in_array(strstr($email, "@"), [
             "@facebook.com",
             "@twitter.com",
+            "@x.com",
             "@wechat.com",
             "@weibo.com",
             "@baidu.com",
@@ -1717,7 +1684,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
         $form = $this->wpdiscuzForm->getForm($post->ID);
         if ($form->getFormID() && ($form->getEnableRateOnPost() || $form->getRatingsExists())) {
             add_meta_box("wpd_reset_ratings", __("Reset Ratings", "wpdiscuz"), [
-                &$this,
+                $this,
                 "resetRatingsButtons"
             ], $postType, "side", "low");
         }
@@ -1894,8 +1861,8 @@ class WpdiscuzHelper implements WpDiscuzConstants {
             #wpdcom .wpd-comment .wpd-follow-link:hover{color: <?php echo esc_html($this->options->thread_styles["primaryColor"]); ?>;}
             #wpdcom .wpd-comment-status .wpd-sticky{color: <?php echo esc_html($this->options->thread_styles["primaryColor"]); ?>;}
             #wpdcom .wpd-thread-filter .wpdf-active{color: <?php echo esc_html($this->options->thread_styles["primaryColor"]); ?>; border-bottom-color:<?php echo esc_html($this->options->thread_styles["primaryColor"]); ?>;}
-            #wpdcom .wpd-comment-info-bar {border: 1px dashed <?php echo esc_html($this->colorBrightness($this->options->thread_styles["primaryColor"], '0.2')); ?>; background: <?php echo esc_html($this->colorBrightness($this->options->thread_styles["primaryColor"], '0.9')); ?>; }
-            #wpdcom .wpd-comment-info-bar .wpd-current-view i{color: <?php echo esc_html($this->options->thread_styles["primaryColor"]); ?>;}
+            #wpdcom .wpd-inline-filter-cta {border: 1px dashed <?php echo esc_html($this->colorBrightness($this->options->thread_styles["primaryColor"], '0.2')); ?>; background: <?php echo esc_html($this->colorBrightness($this->options->thread_styles["primaryColor"], '0.9')); ?>; }
+            #wpdcom .wpd-inline-filter-cta .wpd-current-view i{color: <?php echo esc_html($this->options->thread_styles["primaryColor"]); ?>;}
             #wpdcom .wpd-filter-view-all:hover{background: <?php echo esc_html($this->options->thread_styles["primaryColor"]); ?>;}
             #wpdcom .wpdiscuz-item .wpdiscuz-rating > label {color: <?php echo esc_html($this->options->rating["ratingInactiveColor"]); ?>;}
             #wpdcom .wpdiscuz-item .wpdiscuz-rating:not(:checked) > label:hover,
@@ -2002,7 +1969,13 @@ class WpdiscuzHelper implements WpDiscuzConstants {
         if ($filter === "FILTER_SANITIZE_STRING") {
             $glob = INPUT_POST === $action ? $_POST : $_GET;
             if (key_exists($variable_name, $glob)) {
-                return sanitize_text_field($glob[$variable_name]);
+                // The (string) cast below turns an array into "Array" and raises
+                // an "Array to string conversion" warning; non-stringable
+                // objects throw an Error. Bail out to $default before that.
+                if (!is_scalar($glob[$variable_name])) {
+                    return $default;
+                }
+                return sanitize_text_field((string)$glob[$variable_name]);
             } else {
                 return $default;
             }
@@ -2058,7 +2031,7 @@ class WpdiscuzHelper implements WpDiscuzConstants {
 
         $status_obj = get_post_status_object($status);
 
-        if (!comments_open($comment_post_id)) {
+        if (!current_user_can('moderate_comments') && !comments_open($comment_post_id)) {
 
             do_action("comment_closed", $comment_post_id);
 

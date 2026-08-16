@@ -29,6 +29,7 @@ class WpdiscuzOptions implements WpDiscuzConstants {
     public $wp = [];
     public $wmuUploadMaxFileSize;
     public $wmuPostMaxSize;
+    private $version;
 
     /**
      * Type - HTML elements array
@@ -52,8 +53,9 @@ class WpdiscuzOptions implements WpDiscuzConstants {
     private $addonsArray;
     private $tips;
 
-    public function __construct($dbManager) {
+    public function __construct($dbManager, $version = "") {
         $this->dbManager            = $dbManager;
+        $this->version              = $version;
         $this->addons               = new WpdiscuzAddons($this);
         $this->wmuUploadMaxFileSize = $this->getSizeInBytes(ini_get('upload_max_filesize'));
         $this->wmuPostMaxSize       = $this->getSizeInBytes(ini_get('post_max_size'));
@@ -76,13 +78,17 @@ class WpdiscuzOptions implements WpDiscuzConstants {
         $this->general["humanReadableNumbers"] = apply_filters("wpdiscuz_enable_human_readable_numbers", true);
         $this->initFormRelations();
         $this->initGoodbyeCaptchaField();
-        add_action("wpdiscuz_init", [&$this, "initPhrasesOnLoad"], 2126);
-        add_action("admin_init", [&$this, "saveAndResetOptionsAndPhrases"], 1);
-        add_action("admin_init", [&$this, "exportOptionsOrPhrases"], 1);
+        add_action("wpdiscuz_init", [$this, "initPhrasesOnLoad"], 2126);
+        add_action("admin_init", [$this, "saveAndResetOptionsAndPhrases"], 1);
+        add_action("admin_init", [$this, "exportOptionsOrPhrases"], 1);
 
-        add_action("admin_notices", [&$this, "adminNotices"]);
+        add_action("admin_notices", [$this, "adminNotices"]);
+        add_action("current_screen", [$this, "suppressThirdPartyNotices"]);
         add_action('switch_blog', [$this, "reInitFormOptions"], 10, 3);
 
+        if (is_admin()) {
+            $this->initProTeasers();
+        }
     }
 
     public function getOptions() {
@@ -464,6 +470,8 @@ class WpdiscuzOptions implements WpDiscuzConstants {
             "wc_read_more"                                      => esc_html__("Read more &raquo;", "wpdiscuz"),
             "wc_anonymous"                                      => esc_html__("Anonymous", "wpdiscuz"),
             "wc_msg_required_fields"                            => esc_html__("Please fill out required fields", "wpdiscuz"),
+            "wc_msg_comment_is_trash"                           => esc_html__("This comment is not acceptable.", "wpdiscuz"),
+            "wc_msg_comment_is_spam"                            => esc_html__("This comment is not acceptable.", "wpdiscuz"),
             "wc_connect_with"                                   => esc_html__("Connect with", "wpdiscuz"),
             "wc_subscribed_to"                                  => esc_html__("You're subscribed to", "wpdiscuz"),
             "wc_form_subscription_submit"                       => esc_html__("&rsaquo;", "wpdiscuz"),
@@ -488,7 +496,7 @@ class WpdiscuzOptions implements WpDiscuzConstants {
             "wc_user_settings_follows"                          => esc_html__("Follows", "wpdiscuz"),
             "wc_user_settings_response_to"                      => esc_html__("In response to:", "wpdiscuz"),
             "wc_user_settings_email_me_delete_links"            => esc_html__("Bulk management via email", "wpdiscuz"),
-            "wc_user_settings_email_me_delete_links_desc"       => esc_html__("Click the button above to get an email with bulk delete and unsubscribe links.", "wpdiscuz"),
+            "wc_user_settings_email_me_delete_links_desc"       => esc_html__("Click the link above to get an email with bulk delete and unsubscribe links.", "wpdiscuz"),
             "wc_user_settings_no_data"                          => esc_html__("No data found!", "wpdiscuz"),
             "wc_user_settings_request_deleting_comments"        => esc_html__("Delete all my comments", "wpdiscuz"),
             "wc_user_settings_cancel_subscriptions"             => esc_html__("Cancel all comment subscriptions", "wpdiscuz"),
@@ -1145,6 +1153,8 @@ class WpdiscuzOptions implements WpDiscuzConstants {
         $jsArgs["wc_hide_replies_text"]         = esc_html($this->phrases["wc_hide_replies_text"]);
         $jsArgs["wc_show_replies_text"]         = esc_html($this->phrases["wc_show_replies_text"]);
         $jsArgs["wc_msg_required_fields"]       = esc_html($this->phrases["wc_msg_required_fields"]);
+        $jsArgs["wc_msg_comment_is_trash"]      = esc_html($this->phrases["wc_msg_comment_is_trash"]);
+        $jsArgs["wc_msg_comment_is_spam"]       = esc_html($this->phrases["wc_msg_comment_is_spam"]);
         $jsArgs["wc_invalid_field"]             = esc_html($this->phrases["wc_invalid_field"]);
         $jsArgs["wc_error_empty_text"]          = esc_html($this->phrases["wc_error_empty_text"]);
         $jsArgs["wc_error_url_text"]            = esc_html($this->phrases["wc_error_url_text"]);
@@ -1177,6 +1187,10 @@ class WpdiscuzOptions implements WpDiscuzConstants {
         $jsArgs["wc_follow_impossible"]         = esc_html($this->phrases["wc_follow_impossible"]);
         $jsArgs["wc_follow_not_added"]          = esc_html($this->phrases["wc_follow_not_added"]);
         //follow phrases -->
+        // <!-- inline filter phrases
+        $jsArgs["wc_inline_feedbacks"]         = esc_html($this->phrases["wc_inline_feedbacks"]);
+        $jsArgs["wc_inline_comments_view_all"] = esc_html($this->phrases["wc_inline_comments_view_all"]);
+        // inline filter phrases -->
         $jsArgs["is_user_logged_in"]            = is_user_logged_in();
         $jsArgs["commentListLoadType"]          = $this->thread_display["commentListLoadType"];
         $jsArgs["commentListUpdateType"]        = $this->live["commentListUpdateType"];
@@ -1262,7 +1276,7 @@ class WpdiscuzOptions implements WpDiscuzConstants {
         if ($currentUserId = get_current_user_id()) {
             $jsArgs["isUserRated"] = $this->dbManager->isUserRated($currentUserId, "", $post->ID);
         } else {
-            $jsArgs["isUserRated"] = $this->dbManager->isUserRated(0, md5(wpDiscuz()->helper->getRealIPAddr()), $post->ID);
+            $jsArgs["isUserRated"] = $this->dbManager->isUserRated(0, md5(WpdiscuzHelper::getRealIPAddr()), $post->ID);
         }
 
         return $jsArgs;
@@ -1293,8 +1307,8 @@ class WpdiscuzOptions implements WpDiscuzConstants {
         },
         <?php do_action("wpdiscuz_editor_modules"); ?>
         },
-        wc_be_the_first_text: <?php echo json_encode($this->getPhrase("wc_be_the_first_text", ["unique_id" => "0_0"])); ?>,
-        wc_comment_join_text: <?php echo json_encode($this->getPhrase("wc_comment_join_text", ["unique_id" => "0_0"])); ?>,
+        wc_be_the_first_text: <?php echo json_encode($this->getPhrase("wc_be_the_first_text", ["unique_id" => "0_0"]), JSON_HEX_TAG); ?>,
+        wc_comment_join_text: <?php echo json_encode($this->getPhrase("wc_comment_join_text", ["unique_id" => "0_0"]), JSON_HEX_TAG); ?>,
         theme: 'snow',
         debug: '<?php echo $this->general["loadComboVersion"] || $this->general["loadMinVersion"] ? 'error' : 'warn'; ?>'
         };
@@ -1577,12 +1591,12 @@ class WpdiscuzOptions implements WpDiscuzConstants {
                 $this->content["wmuIsEnabled"]            = isset($_POST[self::TAB_CONTENT]["wmuIsEnabled"]) ? absint($_POST[self::TAB_CONTENT]["wmuIsEnabled"]) : 0;
                 $this->content["wmuIsGuestAllowed"]       = isset($_POST[self::TAB_CONTENT]["wmuIsGuestAllowed"]) ? absint($_POST[self::TAB_CONTENT]["wmuIsGuestAllowed"]) : 0;
                 $this->content["wmuIsLightbox"]           = isset($_POST[self::TAB_CONTENT]["wmuIsLightbox"]) ? absint($_POST[self::TAB_CONTENT]["wmuIsLightbox"]) : 0;
-                $this->content["wmuMimeTypes"]            = isset($_POST[self::TAB_CONTENT]["wmuMimeTypes"]) ? $_POST[self::TAB_CONTENT]["wmuMimeTypes"] : [];
+                $this->content["wmuMimeTypes"]            = isset($_POST[self::TAB_CONTENT]["wmuMimeTypes"]) ? $this->sanitizeWmuMimeTypes($_POST[self::TAB_CONTENT]["wmuMimeTypes"]) : [];
                 $this->content["wmuMaxFileSize"]          = isset($_POST[self::TAB_CONTENT]["wmuMaxFileSize"]) ? absint($_POST[self::TAB_CONTENT]["wmuMaxFileSize"]) : $this->wmuUploadMaxFileSize / (1024 * 1024);
                 $this->content["wmuIsShowFilesDashboard"] = isset($_POST[self::TAB_CONTENT]["wmuIsShowFilesDashboard"]) ? absint($_POST[self::TAB_CONTENT]["wmuIsShowFilesDashboard"]) : 0;
                 $this->content["wmuSingleImageWidth"]     = isset($_POST[self::TAB_CONTENT]["wmuSingleImageWidth"]) && ($v = trim(sanitize_text_field($_POST[self::TAB_CONTENT]["wmuSingleImageWidth"]))) && ($v === "auto" || ($v = absint($v))) ? $v : 320;
                 $this->content["wmuSingleImageHeight"]    = isset($_POST[self::TAB_CONTENT]["wmuSingleImageHeight"]) && ($v = trim(sanitize_text_field($_POST[self::TAB_CONTENT]["wmuSingleImageHeight"]))) && ($v === "auto" || ($v = absint($v))) ? $v : 200;
-                $this->content["wmuThumbnailSizes"]       = isset($_POST[self::TAB_CONTENT]["wmuThumbnailSizes"]) && is_array($_POST[self::TAB_CONTENT]["wmuThumbnailSizes"]) && ($sizes = array_filter($_POST[self::TAB_CONTENT]["wmuThumbnailSizes"])) ? $sizes : [];
+                $this->content["wmuThumbnailSizes"]       = isset($_POST[self::TAB_CONTENT]["wmuThumbnailSizes"]) ? $this->sanitizeWmuThumbnailSizes($_POST[self::TAB_CONTENT]["wmuThumbnailSizes"]) : [];
                 $this->content["wmuIsThumbnailsViaCron"]  = isset($_POST[self::TAB_CONTENT]["wmuIsThumbnailsViaCron"]) ? absint($_POST[self::TAB_CONTENT]["wmuIsThumbnailsViaCron"]) : 0;
             } else if (self::TAB_LIVE === $_POST["wpd_tab"]) {
                 $this->live["userInteractionCheck"]        = isset($_POST[self::TAB_LIVE]["userInteractionCheck"]) ? absint($_POST[self::TAB_LIVE]["userInteractionCheck"]) : 0;
@@ -1714,6 +1728,8 @@ class WpdiscuzOptions implements WpDiscuzConstants {
             $this->phrases["wc_read_more"]                                      = sanitize_text_field($_POST["wc_read_more"]);
             $this->phrases["wc_anonymous"]                                      = sanitize_text_field($_POST["wc_anonymous"]);
             $this->phrases["wc_msg_required_fields"]                            = sanitize_text_field($_POST["wc_msg_required_fields"]);
+            $this->phrases["wc_msg_comment_is_trash"]                           = sanitize_text_field($_POST["wc_msg_comment_is_trash"]);
+            $this->phrases["wc_msg_comment_is_spam"]                            = sanitize_text_field($_POST["wc_msg_comment_is_spam"]);
             $this->phrases["wc_connect_with"]                                   = sanitize_text_field($_POST["wc_connect_with"]);
             $this->phrases["wc_subscribed_to"]                                  = sanitize_text_field($_POST["wc_subscribed_to"]);
             $this->phrases["wc_form_subscription_submit"]                       = sanitize_text_field($_POST["wc_form_subscription_submit"]);
@@ -1963,6 +1979,42 @@ class WpdiscuzOptions implements WpDiscuzConstants {
         }
     }
 
+    /**
+     * Sanitizes an imported phrases array the same way savePhrases() sanitizes the
+     * phrases form, so a phrase file can't store markup the settings form would strip.
+     */
+    private function sanitizePhrases($phrases) {
+        $htmlPhrases = [
+            "wc_email_message",
+            "wc_all_comment_new_reply_message",
+            "wc_new_reply_email_message",
+            "wc_confirm_email_message",
+            "wc_comment_approved_email_message",
+            "wc_social_login_agreement_desc",
+            "wc_user_settings_delete_all_comments_message",
+            "wc_user_settings_delete_all_subscriptions_message",
+            "wc_user_settings_delete_all_follows_message",
+            "wc_follow_confirm_email_message",
+            "wc_follow_email_message",
+            "wc_mentioned_email_message",
+        ];
+
+        $sanitized = [];
+        foreach ($phrases as $key => $value) {
+            if (!is_scalar($value)) {
+                continue;
+            }
+            $value = (string)$value;
+            if (in_array($key, $htmlPhrases, true)) {
+                $sanitized[$key] = wp_kses($value, wp_kses_allowed_html("post"));
+            } else {
+                $sanitized[$key] = sanitize_textarea_field($value);
+            }
+        }
+
+        return $sanitized;
+    }
+
     public function tools() {
         if (current_user_can("manage_options")) {
             if (isset($_POST["tools-action"])) {
@@ -1974,7 +2026,14 @@ class WpdiscuzOptions implements WpDiscuzConstants {
                         if ($data = file_get_contents($file["tmp_name"])) {
                             $options = json_decode($data, true);
                             if ($options && is_array($options)) {
-                                update_option(self::OPTION_SLUG_OPTIONS, $this->replaceOldOptions($options, false));
+                                $newOptions = $this->replaceOldOptions($options, false);
+                                if (isset($newOptions[self::TAB_CONTENT]["wmuMimeTypes"])) {
+                                    $newOptions[self::TAB_CONTENT]["wmuMimeTypes"] = $this->sanitizeImportedWmuMimeTypes($newOptions[self::TAB_CONTENT]["wmuMimeTypes"]);
+                                }
+                                if (isset($newOptions[self::TAB_CONTENT]["wmuThumbnailSizes"])) {
+                                    $newOptions[self::TAB_CONTENT]["wmuThumbnailSizes"] = $this->sanitizeImportedWmuThumbnailSizes($newOptions[self::TAB_CONTENT]["wmuThumbnailSizes"]);
+                                }
+                                update_option(self::OPTION_SLUG_OPTIONS, $newOptions);
                                 add_settings_error("wpdiscuz", "settings_updated", esc_html__("Options Imported Successfully!", "wpdiscuz"), "updated");
                             } else {
                                 add_settings_error("wpdiscuz", "settings_error", esc_html__("Error occured! File content is empty or data is not valid!", "wpdiscuz"), "error");
@@ -1992,7 +2051,7 @@ class WpdiscuzOptions implements WpDiscuzConstants {
                         if ($data = file_get_contents($file["tmp_name"])) {
                             $phrases = json_decode($data, true);
                             if ($phrases && is_array($phrases)) {
-                                $this->dbManager->updatePhrases($phrases);
+                                $this->dbManager->updatePhrases($this->sanitizePhrases($phrases));
                                 add_settings_error("wpdiscuz", "settings_updated", esc_html__("Phrases Imported Successfully!", "wpdiscuz"), "updated");
                             } else {
                                 add_settings_error("wpdiscuz", "settings_error", esc_html__("Error occured! File content is empty or data is not valid!", "wpdiscuz"), "error");
@@ -2011,6 +2070,14 @@ class WpdiscuzOptions implements WpDiscuzConstants {
         include_once WPDISCUZ_DIR_PATH . "/options/html-tools.php";
     }
 
+    public function suppressThirdPartyNotices() {
+        if (isset($_GET["page"]) && $_GET["page"] === self::PAGE_SETTINGS) {
+            remove_all_actions("admin_notices");
+            remove_all_actions("all_admin_notices");
+            add_action("admin_notices", [$this, "adminNotices"]);
+        }
+    }
+
     public function adminNotices() {
         if (current_user_can("manage_options")) {
             $this->regenerateMessage();
@@ -2027,7 +2094,7 @@ class WpdiscuzOptions implements WpDiscuzConstants {
             <div class='notice notice-warning'>
                 <p style="font-size: 14px; font-weight: 600;">
                     <?php esc_html_e("Please complete required steps to start using wpDiscuz 7", "wpdiscuz"); ?> &nbsp;
-                    <a href="<?php echo esc_url_raw(admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&wpd_wizard=1")); ?>"
+                    <a href="<?php echo esc_url(admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&wpd_wizard=1")); ?>"
                        class="button button-primary"><?php intval(get_option(self::OPTION_SLUG_WIZARD_AFTER_UPDATE)) ? esc_html_e("Go to Update Wizard &raquo;", "wpdiscuz") : esc_html_e("Go to Installation Wizard &raquo;", "wpdiscuz"); ?></a>
                 </p>
             </div>
@@ -2047,7 +2114,7 @@ class WpdiscuzOptions implements WpDiscuzConstants {
             <div class='notice notice-warning'>
                 <p>
                     <?php esc_html_e("Comment votes meta data need to be regenerated", "wpdiscuz"); ?>&nbsp;
-                    <a href="<?php echo esc_url_raw(admin_url("admin.php?page=" . self::PAGE_TOOLS . "#wpdtool-regenerate")); ?>"
+                    <a href="<?php echo esc_url(admin_url("admin.php?page=" . self::PAGE_TOOLS . "#wpdtool-regenerate")); ?>"
                        class="button button-primary"><?php esc_html_e("Regenerate Vote Metas", "wpdiscuz"); ?></a>
                 </p>
             </div>
@@ -2058,7 +2125,7 @@ class WpdiscuzOptions implements WpDiscuzConstants {
             <div class='notice notice-warning'>
                 <p>
                     <?php esc_html_e("Closed Comments data need be regenerated", "wpdiscuz"); ?>&nbsp;
-                    <a href="<?php echo esc_url_raw(admin_url("admin.php?page=" . self::PAGE_TOOLS . "#wpdtool-regenerate")); ?>"
+                    <a href="<?php echo esc_url(admin_url("admin.php?page=" . self::PAGE_TOOLS . "#wpdtool-regenerate")); ?>"
                        class="button button-primary"><?php esc_html_e("Regenerate Closed Comments", "wpdiscuz"); ?></a>
                 </p>
             </div>
@@ -2069,7 +2136,7 @@ class WpdiscuzOptions implements WpDiscuzConstants {
             <div class='notice notice-warning'>
                 <p>
                     <?php esc_html_e("Comments votes data need to be regenerated", "wpdiscuz"); ?>&nbsp;
-                    <a href="<?php echo esc_url_raw(admin_url("admin.php?page=" . self::PAGE_TOOLS . "#wpdtool-regenerate")); ?>"
+                    <a href="<?php echo esc_url(admin_url("admin.php?page=" . self::PAGE_TOOLS . "#wpdtool-regenerate")); ?>"
                        class="button button-primary"><?php esc_html_e("Regenerate Vote Data", "wpdiscuz"); ?></a>
                 </p>
             </div>
@@ -2081,7 +2148,7 @@ class WpdiscuzOptions implements WpDiscuzConstants {
                 <p>
                     <?php esc_html_e("Please synchronize comment data for the best performance and fastest experience", "wpdiscuz"); ?>
                     &nbsp;
-                    <a href="<?php echo esc_url_raw(admin_url("admin.php?page=" . self::PAGE_TOOLS . "#wpdtool-regenerate")); ?>"
+                    <a href="<?php echo esc_url(admin_url("admin.php?page=" . self::PAGE_TOOLS . "#wpdtool-regenerate")); ?>"
                        class="button button-primary"><?php esc_html_e("Synchronize Commenters Data", "wpdiscuz"); ?></a>
                 </p>
             </div>
@@ -2093,7 +2160,7 @@ class WpdiscuzOptions implements WpDiscuzConstants {
                 <p>
                     <?php esc_html_e("Please rebuild ratings for the best performance and fastest experience", "wpdiscuz"); ?>
                     &nbsp;
-                    <a href="<?php echo esc_url_raw(admin_url("admin.php?page=" . self::PAGE_TOOLS . "#wpdtool-ratings")); ?>"
+                    <a href="<?php echo esc_url(admin_url("admin.php?page=" . self::PAGE_TOOLS . "#wpdtool-ratings")); ?>"
                        class="button button-primary"><?php esc_html_e("Rebuild Ratings", "wpdiscuz"); ?></a>
                 </p>
             </div>
@@ -2142,6 +2209,89 @@ class WpdiscuzOptions implements WpDiscuzConstants {
 
     public function getDefaultThumbnailSizes() {
         return ["thumbnail", "medium", "medium_large", "large"];
+    }
+
+    /**
+     * Keeps only the extension => mime pairs that exist in the allowed file type list.
+     * Both the key and the stored value are taken from getDefaultFileTypes(), the
+     * incoming value is used only to detect that the option was checked.
+     */
+    private function sanitizeWmuMimeTypes($mimeTypes) {
+        $sanitized = [];
+        if (is_array($mimeTypes)) {
+            foreach ($this->getDefaultFileTypes() as $ext => $mime) {
+                if (isset($mimeTypes[$ext])) {
+                    $sanitized[$ext] = $mime;
+                }
+            }
+        }
+        return $sanitized;
+    }
+
+    /**
+     * Keeps only the image sizes currently registered in WordPress. The comparison is
+     * strict, so nested arrays or non string values can never match.
+     */
+    private function sanitizeWmuThumbnailSizes($sizes) {
+        $sanitized = [];
+        if (is_array($sizes)) {
+            foreach (get_intermediate_image_sizes() as $imageSize) {
+                if (in_array($imageSize, $sizes, true)) {
+                    $sanitized[] = $imageSize;
+                }
+            }
+        }
+        return $sanitized;
+    }
+
+    /**
+     * Imported options can carry file types added by an addon or by a filter which is not
+     * active on the target site yet, so getDefaultFileTypes() would silently drop them.
+     * The WordPress upload boundary is used instead - the extension must be uploadable in
+     * WordPress and every mime value is normalized.
+     */
+    private function sanitizeImportedWmuMimeTypes($mimeTypes) {
+        $sanitized = [];
+        if (is_array($mimeTypes)) {
+            $allowedExts = [];
+            foreach (get_allowed_mime_types() as $exts => $mime) {
+                foreach (explode("|", $exts) as $ext) {
+                    $allowedExts[$ext] = true;
+                }
+            }
+            foreach ($mimeTypes as $ext => $mime) {
+                if (!isset($allowedExts[(string)$ext]) || !is_string($mime)) {
+                    continue;
+                }
+                $mimes = [];
+                foreach (explode("|", $mime) as $singleMime) {
+                    if ($singleMime = sanitize_mime_type($singleMime)) {
+                        $mimes[] = $singleMime;
+                    }
+                }
+                if ($mimes) {
+                    $sanitized[(string)$ext] = implode("|", $mimes);
+                }
+            }
+        }
+        return $sanitized;
+    }
+
+    /**
+     * Imported image sizes are validated against the registered ones at render time, in
+     * WpdiscuzHelperUpload::getImageSizes(), so a size belonging to a theme which is not
+     * active yet is kept here and only the value type is enforced.
+     */
+    private function sanitizeImportedWmuThumbnailSizes($sizes) {
+        $sanitized = [];
+        if (is_array($sizes)) {
+            foreach ($sizes as $size) {
+                if (is_string($size) && ($size = sanitize_text_field($size))) {
+                    $sanitized[] = $size;
+                }
+            }
+        }
+        return $sanitized;
     }
 
     public function dashboard() {
@@ -2594,7 +2744,7 @@ class WpdiscuzOptions implements WpDiscuzConstants {
 
     public function printDocLink($docUrl) {
         if ($docUrl && $docUrl !== "#") {
-            echo "<a href='" . esc_url_raw($docUrl) . "' title='" . esc_attr("Read the documentation", "wpdiscuz") . "' target='_blank'><i class='far fa-question-circle'></i></a>";
+            echo "<a href='" . esc_url($docUrl) . "' title='" . esc_attr("Read the documentation", "wpdiscuz") . "' target='_blank'><i class='far fa-question-circle'></i></a>";
         }
     }
 
@@ -2613,7 +2763,7 @@ class WpdiscuzOptions implements WpDiscuzConstants {
 
     public function settingsArray() {
         $settings = [
-            "core"   => [
+            "core"    => [
                 WpdiscuzCore::TAB_FORM           => [
                     "title"          => esc_html__("Comment Form Settings", "wpdiscuz"),
                     "title_original" => "Comment Form Settings",
@@ -4020,9 +4170,312 @@ class WpdiscuzOptions implements WpDiscuzConstants {
                     ],
                 ],
             ],
-            "addons" => [],
+            "addons"  => [],
+            "teasers" => [],
         ];
-        return apply_filters("wpdiscuz_settings", $settings);
+        $settings = apply_filters("wpdiscuz_settings", $settings);
+        if (!empty($settings["teasers"])) {
+            $new                 = array_filter($settings["teasers"], function ($t) {
+                return !empty($t["is_new"]);
+            });
+            $rest                = array_filter($settings["teasers"], function ($t) {
+                return empty($t["is_new"]);
+            });
+            $settings["teasers"] = $new + $rest;
+        }
+        return $settings;
+    }
+
+    public function initProTeasers() {
+        include_once WPDISCUZ_DIR_PATH . "/options/pro-teasers/class.WpdProTeaser.php";
+        $teaserTpl = WPDISCUZ_DIR_PATH . "/options/pro-teasers/templates/";
+        // Ordered by https://gvectors.com/product-category/wpdiscuz/
+        // Priorities: 200 for position 1, +10 per addon. Positions without a teaser are skipped.
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wam_isactive",
+            "plugin_file"     => "wpdiscuz-ads-manager/class-WpdiscuzAdsManager.php",
+            "tab_key"         => "wam",
+            "title"           => __("Ads Manager", "wpdiscuz"),
+            "title_original"  => "Ads Manager",
+            "template_path"   => $teaserTpl . "wpdiscuz-ads-manager.php",
+            "filter_priority" => 200,
+            "published"       => "2016-10-22 16:08:00",
+            "icon"            => "assets/addons/ads-manager/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wv_isactive",
+            "plugin_file"     => "wpdiscuz-advanced-likers/class.WpdiscuzVoters.php",
+            "tab_key"         => "wv",
+            "title"           => __("Advanced Likers", "wpdiscuz"),
+            "title_original"  => "Advanced Likers",
+            "template_path"   => $teaserTpl . "wpdiscuz-advanced-likers.php",
+            "filter_priority" => 210,
+            "published"       => "2016-10-30 23:43:00",
+            "icon"            => "assets/addons/likers/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_bpi_isactive",
+            "plugin_file"     => "wpdiscuz-buddypress-integration/wpDiscuzBPIntegration.php",
+            "tab_key"         => "bpi",
+            "title"           => __("BuddyPress Integration", "wpdiscuz"),
+            "title_original"  => "BuddyPress Integration",
+            "template_path"   => $teaserTpl . "wpdiscuz-buddypress-integration.php",
+            "filter_priority" => 220,
+            "published"       => "2021-04-19 09:21:00",
+            "icon"            => "assets/addons/buddypress/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wcai_isactive",
+            "plugin_file"     => "wpdiscuz-comment-author-info/wpdiscuz-comment-author-info.php",
+            "tab_key"         => "wcai",
+            "title"           => __("Comment Author Info", "wpdiscuz"),
+            "title_original"  => "Comment Author Info",
+            "template_path"   => $teaserTpl . "wpdiscuz-comment-author-info.php",
+            "filter_priority" => 230,
+            "published"       => "2017-04-24 21:37:00",
+            "icon"            => "assets/addons/author-info/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wpds_isactive",
+            "plugin_file"     => "wpdiscuz-comment-search/search-form-all-comments.php",
+            "tab_key"         => "wpds",
+            "title"           => __("Comment Search", "wpdiscuz"),
+            "title_original"  => "Comment Search",
+            "template_path"   => $teaserTpl . "wpdiscuz-comment-search.php",
+            "filter_priority" => 240,
+            "published"       => "2016-03-24 23:52:00",
+            "icon"            => "assets/addons/search/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_we_isactive",
+            "plugin_file"     => "wpdiscuz-embeds/wpdiscuz-embeds.php",
+            "tab_key"         => "embeds",
+            "title"           => __("Embeds", "wpdiscuz"),
+            "title_original"  => "Embeds",
+            "template_path"   => $teaserTpl . "wpdiscuz-embeds.php",
+            "filter_priority" => 250,
+            "published"       => "2020-06-08 09:05:00",
+            "icon"            => "assets/addons/embeds/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wsm_isactive",
+            "plugin_file"     => "wpdiscuz-emoticons/options-html.php",
+            "tab_key"         => "wsm",
+            "title"           => __("Emoticons", "wpdiscuz"),
+            "title_original"  => "Emoticons",
+            "template_path"   => $teaserTpl . "wpdiscuz-emoticons.php",
+            "filter_priority" => 260,
+            "published"       => "2016-02-02 16:36:00",
+            "icon"            => "assets/addons/emoticons/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_fem_isactive",
+            "plugin_file"     => "wpdiscuz-frontend-moderation/class.wpDiscuzFrontEndModeration.php",
+            "tab_key"         => "fem",
+            "title"           => __("Front-end Moderation", "wpdiscuz"),
+            "title_original"  => "Front-end Moderation",
+            "template_path"   => $teaserTpl . "wpdiscuz-frontend-moderation.php",
+            "filter_priority" => 270,
+            "published"       => "2016-03-23 02:20:00",
+            "icon"            => "assets/addons/frontend-moderation/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wgi_isactive",
+            "plugin_file"     => "wpdiscuz-giphy-integration/wpDiscuzGiphyIntegration.php",
+            "tab_key"         => "wgi",
+            "title"           => __("GIPHY Integration", "wpdiscuz"),
+            "title_original"  => "GIPHY Integration",
+            "template_path"   => $teaserTpl . "wpdiscuz-giphy-integration.php",
+            "filter_priority" => 280,
+            "published"       => "2021-06-12 21:13:00",
+            "icon"            => "assets/addons/giphy/header.png",
+        ], $this, $this->version);
+        // Positions 10 (Google reCAPTCHA) and 11 (Media Uploader) are inline teasers.
+        new WpdProTeaser([
+            "type"                   => "inline",
+            "isactive_filter"        => "wpdiscuz_wrc_isactive",
+            "plugin_file"            => "wpdiscuz-recaptcha/ReCaptchaOptions.php",
+            "tab_key"                => WpdiscuzCore::TAB_RECAPTCHA,
+            "render_priority"        => 290,
+            "template_path"          => $teaserTpl . "wpdiscuz-google-recaptcha.php",
+            "sidebar_title"          => __("Google reCAPTCHA", "wpdiscuz"),
+            "sidebar_title_original" => "Google reCAPTCHA",
+            "anchor"                 => "wpd-wrc-teaser",
+            "published"              => "2015-12-25 01:49:00",
+            "icon"                   => "assets/addons/recaptcha/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"                   => "inline",
+            "isactive_filter"        => "wpdiscuz_mu_isactive",
+            "plugin_file"            => "wpdiscuz-media-uploader/class.WpdiscuzMediaUploader.php",
+            "tab_key"                => WpdiscuzCore::TAB_CONTENT,
+            "render_priority"        => 300,
+            "template_path"          => $teaserTpl . "wpdiscuz-media-uploader.php",
+            "sidebar_title"          => __("Media Uploader", "wpdiscuz"),
+            "sidebar_title_original" => "Media Uploader",
+            "anchor"                 => "wpd-wmu-teaser",
+            "published"              => "2016-02-18 14:57:00",
+            "icon"                   => "assets/addons/uploader/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wmi_isactive",
+            "plugin_file"     => "wpdiscuz-mycred/wpdiscuz-mc.php",
+            "tab_key"         => "wmi",
+            "title"           => __("myCRED Integration", "wpdiscuz"),
+            "title_original"  => "myCRED Integration",
+            "template_path"   => $teaserTpl . "wpdiscuz-mycred-integration.php",
+            "filter_priority" => 310,
+            "published"       => "2016-01-06 02:14:00",
+            "icon"            => "assets/addons/mycred/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wou_isactive",
+            "plugin_file"     => "wpdiscuz-online-users/wpdiscuz-ou.php",
+            "tab_key"         => "wou",
+            "title"           => __("Online Users", "wpdiscuz"),
+            "title_original"  => "Online Users",
+            "template_path"   => $teaserTpl . "wpdiscuz-online-users.php",
+            "filter_priority" => 320,
+            "published"       => "2017-11-11 01:07:00",
+            "icon"            => "assets/addons/online-users/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wpc_isactive",
+            "plugin_file"     => "wpdiscuz-private-comments/wpDiscuzPrivateComment.php",
+            "tab_key"         => "wpc",
+            "title"           => __("Private Comments", "wpdiscuz"),
+            "title_original"  => "Private Comments",
+            "template_path"   => $teaserTpl . "wpdiscuz-private-commenting.php",
+            "filter_priority" => 330,
+            "published"       => "2018-02-08 16:35:00",
+            "icon"            => "assets/addons/private/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wrf_isactive",
+            "plugin_file"     => "wpdiscuz-report-flagging/wpDiscuzFCommentOption.php",
+            "tab_key"         => "wrf",
+            "title"           => __("Report &amp; Flagging", "wpdiscuz"),
+            "title_original"  => "Report &amp; Flagging",
+            "template_path"   => $teaserTpl . "wpdiscuz-comment-reporting.php",
+            "filter_priority" => 340,
+            "published"       => "2016-04-18 21:30:00",
+            "icon"            => "assets/addons/report/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wr_isactive",
+            "plugin_file"     => "wpdiscuz-reviews/wr-core.php",
+            "tab_key"         => "wpdiscuz_reviews",
+            "title"           => __("Reviews", "wpdiscuz"),
+            "title_original"  => "Reviews",
+            "template_path"   => $teaserTpl . "wpdiscuz-reviews.php",
+            "filter_priority" => 350,
+            "published"       => "2026-06-01 00:00:00",
+            "icon"            => "assets/addons/reviews/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wsbm_isactive",
+            "plugin_file"     => "wpdiscuz-subscribe-manager/wpdSubscribeManager.php",
+            "tab_key"         => "wsbm",
+            "title"           => __("Subscription Manager", "wpdiscuz"),
+            "title_original"  => "Subscription Manager",
+            "template_path"   => $teaserTpl . "wpdiscuz-subscription-manager.php",
+            "filter_priority" => 360,
+            "published"       => "2017-01-27 00:08:00",
+            "icon"            => "assets/addons/subscriptions/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wsh_isactive",
+            "plugin_file"     => "wpdiscuz-syntax-highlighter/wpDiscuzSyntaxHighlighter.php",
+            "tab_key"         => "wsh",
+            "title"           => __("Syntax Highlighter", "wpdiscuz"),
+            "title_original"  => "Syntax Highlighter",
+            "template_path"   => $teaserTpl . "wpdiscuz-syntax-highlighter.php",
+            "filter_priority" => 370,
+            "published"       => "2019-03-01 00:00:00",
+            "icon"            => "assets/addons/syntax/header.png",
+        ], $this, $this->version);
+        // deprecated...
+        /**
+         * new WpdProTeaser([
+         * "type"            => "fake_tab",
+         * "isactive_filter" => "wpdiscuz_wti_isactive",
+         * "tab_key"         => "wti",
+         * "title"           => __("Tenor GIFs Integration", "wpdiscuz"),
+         * "title_original"  => "Tenor GIFs Integration",
+         * "template_path"   => $teaserTpl . "wpdiscuz-tenor-integration.php",
+         * "filter_priority" => 380,
+         * "published"       => "2020-01-01 00:00:00",
+         * "icon"            => "assets/addons/tenor/header.png",
+         * ], $this, $this->version);
+         */
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wucm_isactive",
+            "plugin_file"     => "wpdiscuz-user-comment-mentioning/WpdiscuzUCM.php",
+            "tab_key"         => "wucm",
+            "title"           => __("User &amp; Comment Mentioning", "wpdiscuz"),
+            "title_original"  => "User &amp; Comment Mentioning",
+            "template_path"   => $teaserTpl . "wpdiscuz-user-comment-mentioning.php",
+            "filter_priority" => 390,
+            "published"       => "2016-06-20 00:00:00",
+            "icon"            => "assets/addons/user-mention/header.png",
+        ], $this, $this->version);
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_un_isactive",
+            "plugin_file"     => "wpdiscuz-user-notifications/WpdiscuzUserNotifications.php",
+            "tab_key"         => "wun",
+            "title"           => __("User Notifications", "wpdiscuz"),
+            "title_original"  => "User Notifications",
+            "template_path"   => $teaserTpl . "wpdiscuz-user-notifications.php",
+            "filter_priority" => 400,
+            "published"       => "2021-11-21 16:40:00",
+            "icon"            => "assets/addons/notifications/header.png",
+        ], $this, $this->version);
+
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_wvc_isactive",
+            "plugin_file"     => "wpdiscuz-voice-commenting/wpdAudioComment.php",
+            "tab_key"         => "wvc",
+            "title"           => __("Voice Commenting", "wpdiscuz"),
+            "title_original"  => "Voice Commenting",
+            "template_path"   => $teaserTpl . "wpdiscuz-voice-commenting.php",
+            "filter_priority" => 410,
+            "no_save"         => true,
+            "published"       => "2020-10-01 00:00:00",
+            "icon"            => "assets/addons/voice/header.png",
+        ], $this, $this->version);
+
+        new WpdProTeaser([
+            "type"            => "fake_tab",
+            "isactive_filter" => "wpdiscuz_widg_isactive",
+            "plugin_file"     => "wpdiscuz-widgets/wpDiscuzWidgets.php",
+            "tab_key"         => "widg",
+            "title"           => __("Widgets", "wpdiscuz"),
+            "title_original"  => "Widgets",
+            "template_path"   => $teaserTpl . "wpdiscuz-widgets.php",
+            "filter_priority" => 420,
+            "no_save"         => true,
+            "published"       => "2017-01-01 00:00:00",
+            "icon"            => "assets/addons/widgets/header.png",
+        ], $this, $this->version);
     }
 
 }

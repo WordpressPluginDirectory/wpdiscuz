@@ -14,13 +14,13 @@ class WpdiscuzCache implements WpDiscuzConstants {
         $this->options      = $options;
         $this->helper       = $helper;
         $this->wpUploadsDir = wp_upload_dir();
-        add_action("admin_post_purgeAllCaches", [&$this, "purgeAllCaches"]);
-        add_action("admin_post_purgePostCaches", [&$this, "purgePostCaches"]);
-        add_action("wpdiscuz_reset_users_cache", [&$this, "resetUsersCache"]);
-        add_action("wpdiscuz_reset_comments_cache", [&$this, "resetCommentsCache"]);
-        add_action("wpdiscuz_reset_comments_extra_cache", [&$this, "resetExtraCache"]);
-        add_action("comment_post", [&$this, "commentPost"], 248, 3);
-        add_action("edit_comment", [&$this, "editComment"], 249, 2);
+        add_action("admin_post_purgeAllCaches", [$this, "purgeAllCaches"]);
+        add_action("admin_post_purgePostCaches", [$this, "purgePostCaches"]);
+        add_action("wpdiscuz_reset_users_cache", [$this, "resetUsersCache"]);
+        add_action("wpdiscuz_reset_comments_cache", [$this, "resetCommentsCache"]);
+        add_action("wpdiscuz_reset_comments_extra_cache", [$this, "resetExtraCache"]);
+        add_action("comment_post", [$this, "commentPost"], 248, 3);
+        add_action("edit_comment", [$this, "editComment"], 249, 2);
     }
 
     public function purgeAllCaches() {
@@ -29,12 +29,12 @@ class WpdiscuzCache implements WpDiscuzConstants {
             $this->resetUsersCache();
         }
         $referer = wp_get_referer();
-        if (strpos($referer, "page=" . self::PAGE_SETTINGS) === false) {
+        if ($referer && strpos($referer, "page=" . self::PAGE_SETTINGS) === false) {
             $redirect = $referer;
         } else {
             $redirect = admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&wpd_tab=" . self::TAB_GENERAL);
         }
-        wp_redirect($redirect);
+        wp_safe_redirect(esc_url_raw($redirect));
         exit();
     }
 
@@ -43,7 +43,11 @@ class WpdiscuzCache implements WpDiscuzConstants {
             $this->resetCommentsCache(sanitize_text_field($_GET["post_id"]));
             $this->resetUsersCache();
         }
-        wp_redirect(wp_get_referer());
+        $redirect = wp_get_referer();
+        if (!$redirect) {
+            $redirect = admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&wpd_tab=" . self::TAB_GENERAL);
+        }
+        wp_safe_redirect(esc_url_raw($redirect));
         exit();
     }
 
@@ -133,7 +137,8 @@ class WpdiscuzCache implements WpDiscuzConstants {
     }
 
     private function setCache($fileInfo, $data) {
-        if ($this->options->general["isCacheEnabled"]) {
+        $shouldSetCache = (bool)apply_filters("wpdiscuz_set_cache", true, $fileInfo, $data);
+        if ($this->options->general["isCacheEnabled"] && $shouldSetCache) {
             // removing stat caches to avoid unexpected results
             clearstatcache();
             if (!is_dir($fileInfo["dir"])) {
