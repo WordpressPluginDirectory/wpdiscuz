@@ -3,7 +3,7 @@
  * Plugin Name: wpDiscuz
  * Plugin URI: https://wpdiscuz.com/
  * Description: #1 WordPress Comment Plugin. Innovative, modern and feature-rich comment system to supercharge your website comment section.
- * Version: 7.6.64
+ * Version: 7.6.67
  * Author: gVectors Team
  * Author URI: https://gvectors.com/
  * Text Domain: wpdiscuz
@@ -678,8 +678,12 @@ class WpdiscuzCore implements WpDiscuzConstants {
                             } else {
                                 $lastEditedBy = get_user_by("email", $currentUser->comment_author_email);
                             }
-                            $username               = $lastEditedBy ? $lastEditedBy->display_name : $comment->comment_author;
-                            $response["lastEdited"] = "<div class='wpd-comment-last-edited'><i class='far fa-edit'></i>" . esc_html(sprintf($this->options->getPhrase("wc_last_edited", ["comment" => $comment]), $this->helper->dateDiff($lastEditedAt), $username)) . "</div>";
+                            $username       = $lastEditedBy ? $lastEditedBy->display_name : $comment->comment_author;
+                            $lastEditedInfo = esc_html(sprintf($this->options->getPhrase("wc_last_edited", ["comment" => $comment, "default" => ""]), $this->helper->dateDiff($lastEditedAt), $username));
+                            // an icon on its own tells nobody who edited the comment or when
+                            if ($lastEditedInfo) {
+                                $response["lastEdited"] = "<div class='wpd-comment-last-edited'><i class='far fa-edit'></i>" . $lastEditedInfo . "</div>";
+                            }
                         }
                         do_action("wpdiscuz_clean_post_cache", $comment->comment_post_ID, "comment_edited");
                         do_action("wpdiscuz_reset_comments_cache", $comment->comment_post_ID);
@@ -791,13 +795,7 @@ class WpdiscuzCore implements WpDiscuzConstants {
                     if ($parentComment) {
                         $commentListArgs["isSingle"]         = true;
                         $commentListArgs["new_loaded_class"] = "wpd-new-loaded-comment";
-                        if ($comments && $this->options->thread_layouts["highlightVotingButtons"]) {
-                            if (!empty($commentListArgs['current_user']->ID)) {
-                                $commentListArgs['user_votes'] = $this->dbManager->getUserVotes($comments, $commentListArgs['current_user']->ID);
-                            } else {
-                                $commentListArgs['user_votes'] = $this->dbManager->getUserVotes($comments, md5(WpdiscuzHelper::getRealIPAddr()));
-                            }
-                        }
+                        $this->setCommentListUserVotes($comments, $commentListArgs);
                         $response                      = [];
                         $response["message"]           = wp_list_comments($commentListArgs, $comments);
                         $response["parentCommentID"]   = $parentComment->comment_ID;
@@ -813,7 +811,7 @@ class WpdiscuzCore implements WpDiscuzConstants {
     public function loadMoreComments() {
         $this->helper->validateNonce();
         $postId       = WpdiscuzHelper::sanitize(INPUT_POST, "postId", FILTER_SANITIZE_NUMBER_INT, 0);
-        $lastParentId = WpdiscuzHelper::sanitize(INPUT_POST, "lastParentId", FILTER_SANITIZE_NUMBER_INT, 0);
+        $lastParentId = (int) WpdiscuzHelper::sanitize(INPUT_POST, "lastParentId", FILTER_SANITIZE_NUMBER_INT, 0);
         if ($lastParentId >= 0 && $postId) {
             $post = get_post($postId);
             WpdiscuzHelper::validatePostAccess($post);
@@ -901,6 +899,13 @@ class WpdiscuzCore implements WpDiscuzConstants {
         $postId             = isset($args["post_id"]) ? $args["post_id"] : $post->ID;
         $defaults           = $this->getDefaultCommentsArgs($postId);
         $this->commentsArgs = wp_parse_args($args, $defaults);
+        // Security: canonicalize the comment cursor to an integer before it is
+        // used as a cache key or built into the comments SQL clause. This runs
+        // after wp_parse_args() (so it also covers any value injected through
+        // the "wpdiscuz_filter_args" filter) and before the cache lookup below,
+        // so a poisoned value can neither be stored under a tainted cache key
+        // nor reach commentsClauses().
+        $this->commentsArgs["last_parent_id"] = (int) $this->commentsArgs["last_parent_id"];
         $commentListArgs    = $this->getCommentListArgs($postId);
         do_action("wpdiscuz_before_getcomments", $this->commentsArgs, $commentListArgs["current_user"], $args);
         $commentData = [];
@@ -908,13 +913,7 @@ class WpdiscuzCore implements WpDiscuzConstants {
         if ($commentCache = $this->cache->getCommentsCache($this->commentsArgs)) {
             $commentList = $commentCache["commentList"];
             $commentData = $commentCache["commentData"];
-            if ($commentList && $this->options->thread_layouts["highlightVotingButtons"]) {
-                if (!empty($commentListArgs["current_user"]->ID)) {
-                    $commentListArgs["user_votes"] = $this->dbManager->getUserVotes($commentList, $commentListArgs['current_user']->ID);
-                } else {
-                    $commentListArgs["user_votes"] = $this->dbManager->getUserVotes($commentList, md5(WpdiscuzHelper::getRealIPAddr()));
-                }
-            }
+            $this->setCommentListUserVotes($commentList, $commentListArgs);
             if ($this->options->wp["isPaginate"]) {
                 $commentListArgs["page"]              = 0;
                 $commentListArgs["per_page"]          = 0;
@@ -1074,13 +1073,7 @@ class WpdiscuzCore implements WpDiscuzConstants {
                 $commentListArgs["last_parent_id"] = $commentData["last_parent_id"];
             }
         }
-        if ($commentList && $this->options->thread_layouts["highlightVotingButtons"]) {
-            if (!empty($commentListArgs["current_user"]->ID)) {
-                $commentListArgs["user_votes"] = $this->dbManager->getUserVotes($commentList, $commentListArgs['current_user']->ID);
-            } else {
-                $commentListArgs["user_votes"] = $this->dbManager->getUserVotes($commentList, md5(WpdiscuzHelper::getRealIPAddr()));
-            }
-        }
+        $this->setCommentListUserVotes($commentList, $commentListArgs);
 
         return apply_filters("comments_array", $commentList, $this->commentsArgs["post_id"]);
     }
@@ -1174,7 +1167,12 @@ class WpdiscuzCore implements WpDiscuzConstants {
                 $args["join"] .= " LEFT JOIN " . $wpdb->commentmeta . " AS `cm` ON " . $wpdb->comments . ".comment_ID = `cm`.comment_id  AND (`cm`.meta_key = '" . self::META_KEY_VOTES . "')";
                 $orderby      = " IFNULL(`cm`.meta_value,0)+0 DESC, ";
             } else if ($this->commentsArgs["last_parent_id"] && empty($this->commentsArgs["sticky"])) {
-                $args["where"] = $wpdb->comments . ".`comment_ID`" . ($this->commentsArgs["order"] === 'desc' ? " < " : " > ") . $this->commentsArgs["last_parent_id"] . ($args["where"] ? " AND " : "") . $args["where"];
+                // Defensive cast, then bind via %d, so the cursor can never
+                // carry a SQL comment token into the WHERE clause. The operator
+                // is a fixed literal chosen by the ternary, not user input.
+                $lastParentId  = (int) $this->commentsArgs["last_parent_id"];
+                $operator      = $this->commentsArgs["order"] === 'desc' ? "<" : ">";
+                $args["where"] = $wpdb->prepare($wpdb->comments . ".`comment_ID` {$operator} %d", $lastParentId) . ($args["where"] ? " AND " : "") . $args["where"];
             }
             $args["orderby"] = $orderby . $wpdb->comments . ".`{$this->options->thread_display["orderCommentsBy"]}` ";
             $args["orderby"] .= isset($args["order"]) ? "" : $this->commentsArgs["order"];
@@ -1622,6 +1620,17 @@ class WpdiscuzCore implements WpDiscuzConstants {
                 $this->addNewOptions($options);
             }
             $this->addNewPhrases();
+
+            // Security (7.6.66): comment caches produced by affected versions
+            // (7.3.2 through 7.6.65) may have been generated from an untrusted
+            // comment-loading query. Purge the comment caches once when
+            // upgrading from that range so no pre-fix cached response survives.
+            // Purge before stamping the new version, so a mid-request failure
+            // retries on the next load instead of being skipped permanently.
+            if (version_compare($this->version, "7.3.2", ">=") && version_compare($this->version, "7.6.66", "<")) {
+                do_action("wpdiscuz_reset_comments_cache");
+            }
+
             update_option(self::OPTION_SLUG_VERSION, $pluginData["Version"]);
 
             if (version_compare($this->version, "2.1.2", "<=") && version_compare($this->version, "1.0.0", "!=")) {
@@ -1921,6 +1930,7 @@ class WpdiscuzCore implements WpDiscuzConstants {
             ],
         ];
         $currentUser      = WpdiscuzHelper::getCurrentUser();
+        $currentUserIP    = "";
         $currentUserEmail = "";
         $isUserLoggedIn   = false;
         if (!empty($currentUser->ID)) {
@@ -1928,6 +1938,9 @@ class WpdiscuzCore implements WpDiscuzConstants {
             $isUserLoggedIn   = true;
         } else if (!empty($_COOKIE["comment_author_email_" . COOKIEHASH])) {
             $currentUserEmail = urldecode(sanitize_email($_COOKIE["comment_author_email_" . COOKIEHASH]));
+        }
+        if (!$isUserLoggedIn && $this->options->thread_layouts["showVotingButtons"]) {
+            $currentUserIP = (string)WpdiscuzHelper::getRealIPAddr();
         }
         $this->form         = $this->wpdiscuzForm->getForm($postId);
         $high_level_user    = current_user_can("moderate_comments");
@@ -1954,6 +1967,7 @@ class WpdiscuzCore implements WpDiscuzConstants {
             "can_stick_or_close"           => $can_stick_or_close,
             "user_follows"                 => $this->dbManager->getUserFollows($currentUserEmail),
             "current_user"                 => $currentUser,
+            "current_user_ip"              => $currentUserIP,
             "current_user_email"           => $currentUserEmail,
             "is_share_enabled"             => $this->options->isShareEnabled(),
             "post_permalink"               => $post_permalink,
@@ -1982,6 +1996,23 @@ class WpdiscuzCore implements WpDiscuzConstants {
         }
 
         return apply_filters("wpdiscuz_comment_list_args", $args);
+    }
+
+    private function setCommentListUserVotes($commentList, &$commentListArgs) {
+        if (!$commentList || !$this->options->thread_layouts["highlightVotingButtons"]) {
+            return;
+        }
+
+        if (!empty($commentListArgs["current_user"]->ID)) {
+            $userIdOrIp = $commentListArgs["current_user"]->ID;
+        } else {
+            $currentUserIP = isset($commentListArgs["current_user_ip"]) ? (string)$commentListArgs["current_user_ip"] : "";
+            $userIdOrIp    = trim($currentUserIP) !== "" ? md5($currentUserIP) : "";
+        }
+
+        if ($userIdOrIp !== "") {
+            $commentListArgs["user_votes"] = $this->dbManager->getUserVotes($commentList, $userIdOrIp);
+        }
     }
 
     public function addNewRoles() {
@@ -2060,13 +2091,7 @@ class WpdiscuzCore implements WpDiscuzConstants {
                 $comments                                                        = array_merge([$comment], $children);
                 if ($comments) {
                     $response = [];
-                    if ($this->options->thread_layouts["highlightVotingButtons"]) {
-                        if (!empty($commentListArgs["current_user"]->ID)) {
-                            $commentListArgs["user_votes"] = $this->dbManager->getUserVotes($comments, $commentListArgs['current_user']->ID);
-                        } else {
-                            $commentListArgs["user_votes"] = $this->dbManager->getUserVotes($comments, md5(WpdiscuzHelper::getRealIPAddr()));
-                        }
-                    }
+                    $this->setCommentListUserVotes($comments, $commentListArgs);
                     do_action("wpdiscuz_before_show_replies", $this->commentsArgs, $commentListArgs["current_user"]);
                     $response["comment_list"] = wp_list_comments($commentListArgs, $comments);
                     do_action("wpdiscuz_after_show_replies", $this->commentsArgs, $commentListArgs["current_user"]);
@@ -2111,13 +2136,7 @@ class WpdiscuzCore implements WpDiscuzConstants {
                     $commentListArgs["isSingle"]         = true;
                     $commentListArgs["new_loaded_class"] = "wpd-new-loaded-comment";
                     $response                            = [];
-                    if ($comments && $this->options->thread_layouts["highlightVotingButtons"]) {
-                        if (!empty($commentListArgs['current_user']->ID)) {
-                            $commentListArgs["user_votes"] = $this->dbManager->getUserVotes($comments, $commentListArgs['current_user']->ID);
-                        } else {
-                            $commentListArgs["user_votes"] = $this->dbManager->getUserVotes($comments, md5(WpdiscuzHelper::getRealIPAddr()));
-                        }
-                    }
+                    $this->setCommentListUserVotes($comments, $commentListArgs);
                     $response["message"]           = wp_list_comments($commentListArgs, $comments);
                     $response["commentId"]         = $commentId;
                     $response["parentCommentID"]   = $parentComment->comment_ID;
@@ -2174,13 +2193,7 @@ class WpdiscuzCore implements WpDiscuzConstants {
                     $commentListArgs["isSingle"]         = true;
                     $commentListArgs["new_loaded_class"] = "wpd-new-loaded-comment";
                     $response                            = [];
-                    if ($comments && $this->options->thread_layouts["highlightVotingButtons"]) {
-                        if (!empty($commentListArgs['current_user']->ID)) {
-                            $commentListArgs["user_votes"] = $this->dbManager->getUserVotes($comments, $commentListArgs['current_user']->ID);
-                        } else {
-                            $commentListArgs["user_votes"] = $this->dbManager->getUserVotes($comments, md5(WpdiscuzHelper::getRealIPAddr()));
-                        }
-                    }
+                    $this->setCommentListUserVotes($comments, $commentListArgs);
                     $response["message"]           = wp_list_comments($commentListArgs, $comments);
                     $response["commentId"]         = $hottestCommentId;
                     $response["callbackFunctions"] = [];

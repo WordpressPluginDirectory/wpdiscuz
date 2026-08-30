@@ -730,13 +730,22 @@ class WpdiscuzHelperAjax implements WpDiscuzConstants {
         }
 
         if ($commentId && in_array($voteType, $allowedVoteTypes, true)) {
-            $userIP = WpdiscuzHelper::getRealIPAddr();
-            $userID = get_current_user_id();
-            if ($comment->comment_author_IP == $userIP) {
-                wp_send_json_error("wc_deny_voting_from_same_ip");
-            } elseif ($userID && $userID == $comment->user_id) {
+            $userIP    = (string)WpdiscuzHelper::getRealIPAddr();
+            $userID    = get_current_user_id();
+            $hasUserIP = trim($userIP) !== "";
+
+            if ($userID && $userID === (int)$comment->user_id) {
                 wp_send_json_error("wc_self_vote");
             }
+
+            if (!$userID && !$hasUserIP) {
+                wp_send_json_error("wc_login_to_vote");
+            }
+
+            if (!$userID && WpdiscuzHelper::shouldDenyGuestVoteFromSameIP($comment, $userIP)) {
+                wp_send_json_error("wc_deny_voting_from_same_ip");
+            }
+
             $userIdOrIp  = $userID ?: md5($userIP);
             $isUserVoted = $this->dbManager->isUserVoted($userIdOrIp, $commentId);
             $response    = [];
@@ -1224,17 +1233,24 @@ class WpdiscuzHelperAjax implements WpDiscuzConstants {
                             (isset($val["description"]) && stripos($val["description"], $search) !== false) ||
                             (isset($val["label_original"]) && stripos($val["label_original"], $search) !== false) ||
                             (isset($val["description_original"]) && stripos($val["description_original"], $search) !== false) ||
+                            (isset($val["section"]) && stripos($val["section"], $search) !== false) ||
+                            (isset($val["section_original"]) && stripos($val["section_original"], $search) !== false) ||
                             stripos($optKey, $search)) {
 
                             $fragment = empty($val["accordion"]) ? "wpd_tab={$tabKey}#wpdOpt-{$optKey}" : "&wpd_tab={$tabKey}#{$val["accordion"]}#wpdOpt-{$optKey}";
 
+                            $optLabel = esc_html($val["label"]);
+                            if (!empty($val["section"])) {
+                                $optLabel .= " <span class='wpd-opt-search-section'>" . esc_html($val["section"]) . "</span>";
+                            }
+
                             if (isset($result[$tabKey])) {
-                                $result[$tabKey][$optKey] = "<a href='" . esc_url_raw(admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&" . $fragment)) . "' tabindex='" . esc_attr($tabKey . "-" . $optKey) . "' class='wpd-opt-search-taboption'>" . esc_html($val["label"]) . "</a>";
+                                $result[$tabKey][$optKey] = "<a href='" . esc_url_raw(admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&" . $fragment)) . "' tabindex='" . esc_attr($tabKey . "-" . $optKey) . "' class='wpd-opt-search-taboption'>" . $optLabel . "</a>";
                             } else {
                                 $result[$tabKey] = ["<a href='" . esc_url_raw(admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&wpd_tab=" . $tabKey)) . "' tabindex='" . esc_attr($tab["title"]) . "' class='wpd-opt-search-tabtitle'>" . esc_html($tab["title"]) . "</a>"];
 
                                 if (!isset($result[$tabKey][$optKey])) {
-                                    $result[$tabKey][$optKey] = "<a href='" . esc_url_raw(admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&" . $fragment)) . "' tabindex='" . esc_attr($tabKey . "-" . $optKey) . "' class='wpd-opt-search-taboption'>" . esc_html($val["label"]) . "</a>";
+                                    $result[$tabKey][$optKey] = "<a href='" . esc_url_raw(admin_url("admin.php?page=" . self::PAGE_SETTINGS . "&" . $fragment)) . "' tabindex='" . esc_attr($tabKey . "-" . $optKey) . "' class='wpd-opt-search-taboption'>" . $optLabel . "</a>";
                                 }
                             }
                         }
@@ -1251,10 +1267,13 @@ class WpdiscuzHelperAjax implements WpDiscuzConstants {
             }
 
             $allowedHtml = [
-                "a" => [
+                "a"    => [
                     "href"     => true,
                     "tabindex" => true,
                     "class"    => true,
+                ],
+                "span" => [
+                    "class" => true,
                 ],
             ];
             wp_die(wp_kses($output, $allowedHtml));
